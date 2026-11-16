@@ -145,6 +145,7 @@ def main():
     datos_sitio = {"version": version, "origen": origen, "paquetes": paquetes}
     html = open(PLANTILLA, encoding="utf-8").read().replace("__DATOS_SITIO__", json.dumps(datos_sitio, ensure_ascii=False))
     open(os.path.join(SALIDA, "index.html"), "w", encoding="utf-8").write(html)
+    shutil.copy(os.path.join(AQUI, "sitio_src", "modo_navegador.js"), os.path.join(SALIDA, "modo_navegador.js"))
     open(os.path.join(SALIDA, ".nojekyll"), "w").close()
     print(f"Sitio generado en: {SALIDA}")
     print(f"  Página autorizada en el agente: {origen}   (URL: {url_sitio})")
