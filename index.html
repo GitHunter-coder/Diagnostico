@@ -152,6 +152,8 @@
       <div class="sub" style="margin-bottom:10px">Mide el disco donde tu navegador guarda sus datos (normalmente el principal). Es una medición <b>referencial</b>: el sistema usa cachés que pueden favorecer los valores.</div>
       <div class="fila"><label class="peq">Tamaño de prueba:
         <select id="selMB" style="background:#0f172a;color:#f1f5f9;border:1px solid #334155;border-radius:6px;padding:6px"><option value="64">64 MB</option><option value="256" selected>256 MB</option><option value="1024">1 GB</option></select></label>
+        <label class="peq">Modo:
+        <select id="selModo" style="background:#0f172a;color:#f1f5f9;border:1px solid #334155;border-radius:6px;padding:6px"><option value="rapido" selected>Rápido (≈15 s)</option><option value="avanzado">Avanzado: prueba sostenida (≈1 min)</option></select></label>
         <button class="primario" id="btnOpfs">▶ Medir almacenamiento del navegador</button></div>
     </div>
     <div class="card">
@@ -165,8 +167,8 @@
     </div>
     <div class="card oculto" id="progNav"><div class="barra"><div id="barraNav"></div></div><div class="sub" id="textoNav" style="margin-top:6px"></div></div>
     <div class="card oculto" id="resNav">
-      <div class="fila"><h2 style="margin:0">Resultados</h2><span><button class="verde" id="btnXlsx">📥 Descargar Excel</button> <button class="neutro" id="btnJson">{ } JSON</button></span></div>
-      <div class="kpis" id="kpisNav"></div><div id="catsNav"></div>
+      <div class="fila" style="margin-bottom:10px"><h2 style="margin:0">Resultados</h2><span><button class="verde" id="btnXlsx">📥 Descargar Excel</button> <button class="neutro" id="btnHtmlNav">🗎 Informe HTML</button> <button class="neutro" id="btnJson">{ } JSON</button></span></div>
+      <iframe id="visorNav" title="Dashboard del modo navegador"></iframe>
     </div>
   </section>
 
@@ -177,8 +179,9 @@
   </section>
 </div>
 
+<script src="modo_navegador.js"></script>
 <script>
-const SITIO = {"version": "V3", "origen": "https://githunter-coder.github.io", "paquetes": {"windows": {"archivo": "descargas/diagnostico_windows.zip", "tam": 9192865, "sha256": "3294d6b59a9efa84e6c3e26029933122deab0b0c77304aa5be1f6d0410932ebb", "lanzadores": {"sin": "Iniciar.bat", "con": "Iniciar.bat", "unico": true}}, "macos": {"archivo": "descargas/diagnostico_macos.zip", "tam": 49384, "sha256": "f0deb711540e1946217a199cb90625c7e00ab9932ac86bc3fb88b3ba5b28983d", "lanzadores": {"sin": "Iniciar_SIN_SMART.command", "con": "Iniciar_CON_SMART.command"}}, "linux": {"archivo": "descargas/diagnostico_linux.zip", "tam": 49326, "sha256": "5bd832d0a49b63189fcb03d2603d0e68bf1c2931e016ac74c38120580d52d38a", "lanzadores": {"sin": "iniciar_sin_smart.sh", "con": "iniciar_con_smart.sh"}}}};
+const SITIO = {"version": "V3", "origen": "https://githunter-coder.github.io", "paquetes": {"windows": {"archivo": "descargas/diagnostico_windows.zip", "tam": 9194377, "sha256": "d7197c2e32fa0f54ce07612c2b3a61e6d244dbd2442940faeacacdcdaccd0552", "lanzadores": {"sin": "Iniciar.bat", "con": "Iniciar.bat", "unico": true}}, "macos": {"archivo": "descargas/diagnostico_macos.zip", "tam": 49384, "sha256": "f0deb711540e1946217a199cb90625c7e00ab9932ac86bc3fb88b3ba5b28983d", "lanzadores": {"sin": "Iniciar_SIN_SMART.command", "con": "Iniciar_CON_SMART.command"}}, "linux": {"archivo": "descargas/diagnostico_linux.zip", "tam": 49326, "sha256": "5bd832d0a49b63189fcb03d2603d0e68bf1c2931e016ac74c38120580d52d38a", "lanzadores": {"sin": "iniciar_sin_smart.sh", "con": "iniciar_con_smart.sh"}}}};
 const PUERTOS = [8765, 8766, 8767, 8768, 8769, 8770, 8771, 8772, 8773, 8774];
 const $ = (id) => document.getElementById(id);
 const mostrar = (id, v) => $(id).classList.toggle("oculto", !v);
@@ -518,21 +521,21 @@ async function iniciarNavegador() {
   const partes = [TIENE_OPFS ? "almacenamiento del navegador ✔" : "almacenamiento del navegador ✘", TIENE_CARPETA ? "carpetas ✔" : "carpetas ✘ (usa Chrome o Edge de escritorio)"];
   $("capacidades").textContent = partes.join(" · ");
   $("btnOpfs").disabled = !TIENE_OPFS; $("btnElegirCarpeta").disabled = !TIENE_CARPETA;
-  RES.fecha = new Date().toLocaleString("es"); RES.sistema = { cpu: navigator.hardwareConcurrency || null, ram_gb: navigator.deviceMemory || null };
-  try { const e = await navigator.storage.estimate(); RES.sistema.cuota = e.quota; RES.sistema.usado = e.usage; } catch (e) {}
+  RES.fecha = new Date().toLocaleString("es"); RES.sistema = await datosSistemaNav();
   pintarResultados();
 }
 function medirOpfs() {
   bloquearNav(true); ctlNav = { cancelado: false }; progNav(0, "Preparando…");
-  const w = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" })));
+  RES.inicio = RES.inicio || new Date(); RES.modo = $("selModo").value;
+  const w = new Worker(URL.createObjectURL(new Blob([WORKER_NAV], { type: "text/javascript" })));
   $("btnCancelNav").onclick = () => { w.terminate(); bloquearNav(false); progNav(0, "Cancelado (el archivo temporal del navegador puede borrarse al limpiar datos del sitio)."); };
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.p !== undefined && !d.fin) progNav(d.p, d.f + "…");
     if (d.error) { progNav(0, "Error: " + d.error); bloquearNav(false); w.terminate(); }
-    if (d.fin) { RES.opfs = { mb: d.mb, lectura: d.lectura, escritura: d.escritura, iops: d.iops, latencia: d.latencia }; progNav(1, "Listo"); bloquearNav(false); w.terminate(); pintarResultados(); }
+    if (d.fin) { RES.opfs = d; progNav(1, "Listo"); bloquearNav(false); w.terminate(); pintarResultados(); }
   };
-  w.postMessage({ mb: parseInt($("selMB").value, 10) });
+  w.postMessage({ mb: parseInt($("selMB").value, 10), sost: RES.modo === "avanzado" ? 45 : 0 });
 }
 async function elegirCarpeta() {
   try { carpetaHandle = await window.showDirectoryPicker({ mode: "readwrite", id: "diag-bench" }); }
@@ -540,6 +543,7 @@ async function elegirCarpeta() {
   $("carpetaNombre").textContent = "Carpeta: " + carpetaHandle.name; $("btnMedirCarpeta").disabled = false; $("btnCatCarpeta").disabled = false;
 }
 async function medirCarpeta() {
+  RES.inicio = RES.inicio || new Date();
   bloquearNav(true); ctlNav = { cancelado: false }; $("btnCancelNav").onclick = () => { ctlNav.cancelado = true; };
   const nombre = ".diag_bench_" + Date.now() + ".tmp"; const mb = parseInt($("selMB").value, 10);
   try {
@@ -564,49 +568,26 @@ async function analizarCarpeta() {
   } catch (e) { progNav(0, "Error: " + e.message); }
   bloquearNav(false); pintarResultados();
 }
-function kpi(etq, valor) { const d = document.createElement("div"); d.className = "kpi"; const s = document.createElement("span"); s.textContent = etq; const b = document.createElement("b"); b.textContent = valor; d.append(s, b); return d; }
-function pintarResultados() {
-  const k = $("kpisNav"); k.textContent = ""; let alguno = false;
-  const S = RES.sistema; if (S.cpu) k.appendChild(kpi("Núcleos de CPU", S.cpu)); if (S.ram_gb) k.appendChild(kpi("RAM (aprox.)", "≥ " + S.ram_gb + " GB"));
-  if (S.cuota) { k.appendChild(kpi("Cuota del navegador", fmtBytes(S.cuota))); k.appendChild(kpi("Usado por esta página", fmtBytes(S.usado || 0))); }
-  if (RES.opfs) { alguno = true; k.append(kpi("Navegador · escritura", fmtMB(RES.opfs.escritura) + " MB/s"), kpi("Navegador · lectura", fmtMB(RES.opfs.lectura) + " MB/s"), kpi("Navegador · IOPS 4K (escritura)", Math.round(RES.opfs.iops).toLocaleString()), kpi("Latencia media", RES.opfs.latencia.toFixed(3) + " ms")); }
-  if (RES.carpeta) { alguno = true; k.append(kpi("Carpeta · escritura", fmtMB(RES.carpeta.escritura) + " MB/s"), kpi("Carpeta · lectura", fmtMB(RES.carpeta.lectura) + " MB/s")); }
-  const cont = $("catsNav"); cont.textContent = "";
-  if (RES.categorias) {
-    alguno = true; const c = RES.categorias; const suma = Object.values(c.cats).reduce((a, x) => a + x.bytes, 0) || 1;
-    const t = document.createElement("h3"); t.textContent = `Categorías en «${c.nombre}» · ${c.total.toLocaleString()} archivos · ${fmtBytes(suma)}${c.completo ? "" : " (parcial)"}`; cont.appendChild(t);
-    CATEGORIAS.forEach((nom, i) => {
-      const v = c.cats[nom]; const fila = document.createElement("div"); fila.className = "catfila";
-      const a = document.createElement("span"); a.textContent = nom; const bar = document.createElement("div"); bar.className = "catbarra";
-      const rel = document.createElement("i"); rel.style.cssText = `width:${(v.bytes / suma * 100).toFixed(1)}%;background:${COLORES_CAT[i]}`; bar.appendChild(rel);
-      const x = document.createElement("span"); x.className = "peq"; x.textContent = `${(v.bytes / suma * 100).toFixed(1)}% · ${fmtBytes(v.bytes)} · ${v.archivos.toLocaleString()}`;
-      fila.append(a, bar, x); cont.appendChild(fila);
-    });
-  }
-  mostrar("resNav", k.children.length > 0 || alguno);
+let DNAV = null, HTMLNAV = "";
+async function pintarResultados() {
+  if (!RES.opfs && !RES.carpeta && !RES.categorias) { mostrar("resNav", false); return; }
+  try {
+    DNAV = await construirDatosNav(RES, NOMBRES_SO); HTMLNAV = htmlInformeNav(DNAV);
+    $("visorNav").srcdoc = HTMLNAV; mostrar("resNav", true);
+  } catch (e) { progNav(0, "No se pudo generar el informe: " + e.message); }
 }
 function descargarArchivo(nombre, contenido, tipo) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([contenido], { type: tipo })); a.download = nombre; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
 function cargarScript(src) { return new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => no(new Error("No se pudo cargar " + src)); document.head.appendChild(s); }); }
 async function exportarExcel() {
-  const fecha = new Date().toISOString().slice(0, 10);
-  const filas = [["Informe de diagnóstico (modo navegador)"], ["Fecha", RES.fecha], ["Sistema", NOMBRES_SO[SO]], ["Navegador", NAV], ["Núcleos CPU", RES.sistema.cpu || "N/D"], ["RAM aprox. (GB)", RES.sistema.ram_gb || "N/D"], [],
-    ["Prueba", "Escritura MB/s", "Lectura MB/s", "IOPS 4K", "Latencia ms", "Tamaño MB"]];
-  if (RES.opfs) filas.push(["Almacenamiento del navegador", +RES.opfs.escritura.toFixed(1), +RES.opfs.lectura.toFixed(1), Math.round(RES.opfs.iops), +RES.opfs.latencia.toFixed(3), RES.opfs.mb]);
-  if (RES.carpeta) filas.push(["Carpeta: " + RES.carpeta.nombre, +RES.carpeta.escritura.toFixed(1), +RES.carpeta.lectura.toFixed(1), "N/D", "N/D", RES.carpeta.mb]);
-  const cat = [["Categoría", "Archivos", "Tamaño (bytes)", "% del total"]];
-  if (RES.categorias) { const suma = Object.values(RES.categorias.cats).reduce((a, x) => a + x.bytes, 0) || 1; CATEGORIAS.forEach(n => { const v = RES.categorias.cats[n]; cat.push([n, v.archivos, v.bytes, +(v.bytes / suma * 100).toFixed(2)]); }); }
+  if (!DNAV) return;
   try {
     if (!window.XLSX) await cargarScript("https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js");
-    const wb = XLSX.utils.book_new(); const a = XLSX.utils.aoa_to_sheet(filas); a["!cols"] = [{ wch: 34 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 12 }];
-    XLSX.utils.book_append_sheet(wb, a, "Resumen");
-    if (cat.length > 1) { const c = XLSX.utils.aoa_to_sheet(cat); c["!cols"] = [{ wch: 36 }, { wch: 12 }, { wch: 18 }, { wch: 12 }]; XLSX.utils.book_append_sheet(wb, c, "Categorías"); }
-    XLSX.writeFile(wb, `Diagnostico_navegador_${fecha}.xlsx`);
-  } catch (e) {   // sin internet para la librería: CSV
-    descargarArchivo(`Diagnostico_navegador_${fecha}.csv`, "﻿" + filas.concat([[]], cat).map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(",")).join("\n"), "text/csv");
-  }
+    XLSX.writeFile(construirExcelNav(DNAV, XLSX), `Reporte_Diagnostico_Navegador_${DNAV.auditoria.id}.xlsx`);
+  } catch (e) { alert("No se pudo generar el Excel (se necesita conexión para cargar la librería): " + e.message); }
 }
 $("btnOpfs").onclick = medirOpfs; $("btnElegirCarpeta").onclick = elegirCarpeta; $("btnMedirCarpeta").onclick = medirCarpeta; $("btnCatCarpeta").onclick = analizarCarpeta;
-$("btnXlsx").onclick = exportarExcel; $("btnJson").onclick = () => descargarArchivo("diagnostico_navegador.json", JSON.stringify(RES, null, 2), "application/json");
+$("btnXlsx").onclick = exportarExcel; $("btnJson").onclick = () => DNAV && descargarArchivo("diagnostico_navegador.json", JSON.stringify(DNAV, null, 2), "application/json");
+$("btnHtmlNav").onclick = () => HTMLNAV && descargarArchivo(`Dashboard_Navegador_${DNAV.auditoria.id}.html`, HTMLNAV, "text/html");
 
 iniciarSistema();
 // Si el programa abrió esta página con una clave de un solo uso (#k=...), entra directo en modo completo y se conecta sola.
