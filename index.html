@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<title>Diagnóstico de Almacenamiento</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --borde:#334155; --txt:#f1f5f9; --sub:#94a3b8; --azul:#3b82f6; --verde:#10b981; --rojo:#f43f5e; --amb:#f59e0b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; line-height:1.45; }
+  .wrap { max-width:1100px; margin:0 auto; padding:24px 16px 60px; }
+  h1 { font-size:1.7rem; margin:0 0 4px; } h2 { font-size:1.05rem; margin:0 0 10px; } h3 { font-size:.95rem; margin:0 0 6px; color:#cbd5e1; }
+  .sub { color:var(--sub); font-size:.9rem; } .peq { font-size:.82rem; color:var(--sub); }
+  .card { background:var(--card); border:1px solid var(--borde); border-radius:12px; padding:20px; margin-bottom:16px; }
+  .aviso { border-color:var(--amb); color:#fde68a; } .err { border-color:var(--rojo); color:#fecaca; } .ok { border-color:var(--verde); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; } @media (max-width:800px){ .grid2 { grid-template-columns:1fr; } }
+  .pill { display:inline-block; background:#052e1b; color:#6ee7b7; border:1px solid #065f46; border-radius:999px; padding:4px 12px; font-size:.8rem; }
+  button, a.btn { font:inherit; border:0; border-radius:8px; padding:10px 16px; cursor:pointer; font-weight:600; color:#fff; text-decoration:none; display:inline-block; }
+  .primario { background:var(--azul); } .primario:hover { background:#2563eb; } .neutro { background:#475569; } .peligro { background:var(--rojo); } .verde { background:#059669; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  label.op { display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border:1px solid var(--borde); border-radius:8px; margin-bottom:8px; cursor:pointer; }
+  label.op small { display:block; color:var(--sub); }
+  .units { display:flex; flex-wrap:wrap; gap:8px; } .units label { border:1px solid var(--borde); border-radius:8px; padding:8px 12px; cursor:pointer; }
+  .barra { height:14px; background:#0f172a; border-radius:999px; overflow:hidden; border:1px solid var(--borde); }
+  .barra > div { height:100%; width:0; background:linear-gradient(90deg,var(--azul),var(--verde)); transition:width .3s; }
+  pre { background:#020617; color:#34d399; border:1px solid var(--borde); border-radius:8px; padding:12px; font-size:.78rem; max-height:240px; overflow:auto; margin:10px 0 0; white-space:pre-wrap; }
+  code { background:#0f172a; padding:1px 6px; border-radius:4px; font-size:.85em; word-break:break-all; }
+  input[type=text] { font:inherit; background:#0f172a; color:var(--txt); border:1px solid var(--borde); border-radius:8px; padding:10px 12px; }
+  .fila { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center; }
+  .punto { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; background:#64748b; } .punto.ok { background:var(--verde); } .punto.no { background:var(--rojo); }
+  ul.lista { margin:6px 0 0 18px; padding:0; color:#cbd5e1; font-size:.9rem; } ul.lista li { margin-bottom:3px; }
+  .si::marker { content:"✔ "; color:#34d399; } .no::marker { content:"✘ "; color:#f87171; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin:12px 0; }
+  .kpi { background:#0f172a; border:1px solid var(--borde); border-radius:10px; padding:12px; } .kpi b { display:block; font-size:1.5rem; margin-top:2px; }
+  .kpi span { font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; color:var(--sub); }
+  .catfila { display:grid; grid-template-columns:210px 1fr 150px; gap:10px; align-items:center; margin:6px 0; font-size:.85rem; } @media (max-width:640px){ .catfila { grid-template-columns:1fr; } }
+  .catbarra { height:12px; border-radius:6px; background:#0f172a; overflow:hidden; border:1px solid var(--borde); } .catbarra > i { display:block; height:100%; }
+  iframe { width:100%; height:92vh; border:1px solid var(--borde); border-radius:12px; background:var(--bg); }
+  .oculto { display:none !important; }
+  table.hash { width:100%; border-collapse:collapse; font-size:.8rem; } table.hash td { padding:4px 8px; border-bottom:1px solid var(--borde); word-break:break-all; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header style="margin-bottom:18px">
+    <h1>Diagnóstico de Almacenamiento</h1>
+    <div class="sub">Mide velocidad, capacidad y estado de los discos de <b>tu propio equipo</b>.</div>
+    <div style="margin-top:10px"><span class="pill">🔒 Todo ocurre en tu equipo. Esta página no envía tus datos a ningún servidor.</span></div>
+  </header>
+
+  <section class="card" id="sistema">
+    <div class="fila"><div><h2 style="margin:0">Tu equipo</h2><div id="soTexto" class="sub">Detectando…</div></div><div id="soAviso" class="peq"></div></div>
+  </section>
+
+  <section id="elegir" class="grid2">
+    <article class="card" id="cardNav">
+      <h2>🌐 Prueba en el navegador <span class="peq">(sin instalar nada)</span></h2>
+      <div class="sub" style="margin-bottom:8px">Funciona abriendo esta página. Mide menos cosas.</div>
+      <h3>Qué mide</h3>
+      <ul class="lista"><li class="si">Velocidad de lectura/escritura del almacenamiento del navegador y de una carpeta que tú elijas</li>
+        <li class="si">Uso por categoría de archivos de esa carpeta (imágenes, videos, documentos…)</li>
+        <li class="si">Procesador, memoria y espacio disponible para el navegador</li></ul>
+      <h3 style="margin-top:10px">Qué NO puede medir</h3>
+      <ul class="lista"><li class="no">Estado SMART, temperatura, horas de uso ni desgaste del disco</li>
+        <li class="no">Elegir una carpeta solo funciona en Chrome o Edge de escritorio</li></ul>
+      <div style="margin-top:14px"><button class="primario" id="btnModoNav">Usar el modo navegador</button></div>
+    </article>
+
+    <article class="card" id="cardAgente">
+      <h2>💻 Prueba completa <span class="peq">(con un programa en tu equipo)</span></h2>
+      <div class="sub" style="margin-bottom:8px">Un programa pequeño que ejecutas tú; esta página lo controla.</div>
+      <h3>Qué mide</h3>
+      <ul class="lista"><li class="si">Todos los discos: velocidad, IOPS, capacidad y categorías de archivos</li>
+        <li class="si">Opcional: SMART (salud, temperatura, horas de uso, desgaste, errores)</li>
+        <li class="si">Informe con dashboard y Excel</li></ul>
+      <label class="op" style="margin-top:12px"><input type="checkbox" id="chkSmart">
+        <span><b>Autorizo leer datos SMART de mis discos</b>
+          <small>Se leen contadores de salud del disco (no tus archivos). Se pedirá permiso de administrador en tu equipo. Sin esto, la prueba funciona igual, pero sin salud/temperatura.</small></span></label>
+      <div style="margin-top:6px"><button class="primario" id="btnModoAgente">Usar la prueba completa</button></div>
+    </article>
+  </section>
+
+  <!-- ============ MODO AGENTE ============ -->
+  <section id="panelAgente" class="oculto">
+    <div class="card">
+      <div class="fila"><div><span id="punto" class="punto"></span><b id="conexion">Buscando el programa en tu equipo…</b>
+        <span id="estadoSmart" class="peq"></span></div><button class="neutro" id="btnVolverA">← Cambiar de modo</button></div>
+      <div id="avisoVersion" class="peq oculto" style="margin-top:6px;color:#fde68a"></div>
+    </div>
+
+    <div id="bloqueDescarga" class="card aviso">
+      <h2 style="color:#fde68a">Paso 1 · Descarga y ejecuta el programa</h2>
+      <div id="descargaTexto"></div>
+      <div id="descargaOtros" class="peq" style="margin-top:12px"></div>
+      <div id="notaNavegador" class="peq oculto" style="margin-top:10px"></div>
+      <div class="peq" style="margin-top:10px">Esta página se conectará sola cuando el programa esté abierto. Si tu navegador pregunta si permite acceder a "este equipo/red local", acepta.</div>
+    </div>
+
+    <div id="bloqueLogin" class="card oculto">
+      <h2>Paso 2 · Escribe el PIN</h2>
+      <p style="margin:0 0 12px;color:#cbd5e1">Aparece en la ventana del programa (6 dígitos).</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <input id="pin" type="text" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="PIN"
+               style="width:190px;font-size:1.3rem;letter-spacing:.25em;text-align:center;text-transform:uppercase">
+        <button class="primario" id="btnPin">Entrar</button>
+      </div>
+      <div id="pinError" class="peq" style="color:#fecaca;margin-top:8px"></div>
+    </div>
+
+    <div id="bloqueConfig" class="card oculto">
+      <h2>Paso 3 · Elige qué medir</h2>
+      <div id="equipoInfo" class="peq" style="margin-bottom:8px"></div>
+      <div class="sub" style="margin:0 0 6px">Unidades</div>
+      <div class="units" id="unidades"></div>
+      <div style="margin-top:12px">
+        <label class="op"><input type="radio" name="modo" value="1" checked><span><b>Test General</b><small>Pruebas rápidas (1–3 min por unidad).</small></span></label>
+        <label class="op"><input type="radio" name="modo" value="2"><span><b>Test Avanzado</b><small>Estrés térmico sostenido (~2 min por unidad).</small></span></label>
+        <label class="op"><input type="checkbox" id="chkCat" checked><span><b>Analizar uso por categoría de archivos</b><small>Recorre la unidad; puede tardar varios minutos en discos grandes.</small></span></label>
+      </div>
+      <div class="fila" style="margin-top:12px"><span class="peq">Se escribe un archivo temporal en cada unidad y se elimina al terminar.</span><button class="primario" id="btnIniciar">▶ Iniciar prueba</button></div>
+      <div id="ultimoRep" class="peq oculto" style="margin-top:10px"><a href="#" id="lnkUltimo" style="color:#93c5fd">Ver el último reporte generado</a></div>
+    </div>
+
+    <div id="bloqueProgreso" class="card oculto">
+      <div class="fila" style="margin-bottom:10px"><div><b id="progTitulo">En ejecución…</b><div class="sub" id="progEtapa"></div></div><button class="peligro" id="btnCancelar">✖ Cancelar</button></div>
+      <div class="barra"><div id="barraFill"></div></div><div class="sub" id="progPct" style="margin-top:6px">0%</div><pre id="consola"></pre>
+    </div>
+    <div id="bloqueError" class="card err oculto"></div>
+    <div id="bloqueResultado" class="oculto">
+      <div class="fila" style="margin-bottom:10px"><span><b>Resultado</b> <span class="peq" id="rutaGuardado"></span></span>
+        <span><a id="lnkNueva" href="#" target="_blank" rel="noopener" style="color:#93c5fd">Abrir en pestaña nueva ↗</a> &nbsp; <button class="neutro" id="btnOtra">↻ Nueva prueba</button></span></div>
+      <iframe id="visor" title="Dashboard"></iframe>
+    </div>
+  </section>
+
+  <!-- ============ MODO NAVEGADOR ============ -->
+  <section id="panelNavegador" class="oculto">
+    <div class="card"><div class="fila"><div><b>Modo navegador</b> <span class="peq" id="capacidades"></span></div><button class="neutro" id="btnVolverN">← Cambiar de modo</button></div></div>
+    <div class="card">
+      <h2>1 · Almacenamiento del navegador</h2>
+      <div class="sub" style="margin-bottom:10px">Mide el disco donde tu navegador guarda sus datos (normalmente el principal). Es una medición <b>referencial</b>: el sistema usa cachés que pueden favorecer los valores.</div>
+      <div class="fila"><label class="peq">Tamaño de prueba:
+        <select id="selMB" style="background:#0f172a;color:#f1f5f9;border:1px solid #334155;border-radius:6px;padding:6px"><option value="64">64 MB</option><option value="256" selected>256 MB</option><option value="1024">1 GB</option></select></label>
+        <button class="primario" id="btnOpfs">▶ Medir almacenamiento del navegador</button></div>
+    </div>
+    <div class="card">
+      <h2>2 · Una carpeta de tu equipo <span class="peq">(Chrome / Edge de escritorio)</span></h2>
+      <div class="sub" style="margin-bottom:10px">Elige una carpeta (por ejemplo, en otro disco o unidad USB): se mide su velocidad de escritura/lectura y se clasifican sus archivos. La página <b>no sube ni guarda</b> el contenido; pedirá tu permiso y escribe un archivo temporal que borra al terminar.</div>
+      <div class="fila"><span class="peq" id="carpetaNombre">Ninguna carpeta elegida</span>
+        <span><button class="neutro" id="btnElegirCarpeta">📁 Elegir carpeta…</button>
+        <button class="primario" id="btnMedirCarpeta" disabled>▶ Medir velocidad</button>
+        <button class="primario" id="btnCatCarpeta" disabled>▶ Analizar categorías</button>
+        <button class="peligro oculto" id="btnCancelNav">✖ Cancelar</button></span></div>
+    </div>
+    <div class="card oculto" id="progNav"><div class="barra"><div id="barraNav"></div></div><div class="sub" id="textoNav" style="margin-top:6px"></div></div>
+    <div class="card oculto" id="resNav">
+      <div class="fila"><h2 style="margin:0">Resultados</h2><span><button class="verde" id="btnXlsx">📥 Descargar Excel</button> <button class="neutro" id="btnJson">{ } JSON</button></span></div>
+      <div class="kpis" id="kpisNav"></div><div id="catsNav"></div>
+    </div>
+  </section>
+
+  <section class="card" id="integridad">
+    <h2>Verificación de las descargas</h2>
+    <div class="peq" style="margin-bottom:8px">Si quieres comprobar que el archivo no fue alterado, compara su SHA-256 (Windows: <code>certutil -hashfile archivo.zip SHA256</code> · macOS/Linux: <code>shasum -a 256 archivo.zip</code>).</div>
+    <table class="hash" id="tablaHash"></table>
+  </section>
+</div>
+
+<script>
+const SITIO = {"version": "V3", "origen": "https://githunter-coder.github.io", "paquetes": {"windows": {"archivo": "descargas/diagnostico_windows.zip", "tam": 48234, "sha256": "80f28dc72eaf9b7d3e55f5178114d5f73fbaa28a53335dbb0c1899a121cd3fd4", "lanzadores": {"sin": "Iniciar_SIN_SMART.bat", "con": "Iniciar_CON_SMART.bat"}}, "macos": {"archivo": "descargas/diagnostico_macos.zip", "tam": 47984, "sha256": "17fc80e6050c973bbb41a5a8ec3a0e6cc123395956d78c47a4d272f1aad6af81", "lanzadores": {"sin": "Iniciar_SIN_SMART.command", "con": "Iniciar_CON_SMART.command"}}, "linux": {"archivo": "descargas/diagnostico_linux.zip", "tam": 47926, "sha256": "93da093aadaadf362d661ecfbb04863987e5e7b6e443bd828ab16641f35f3537", "lanzadores": {"sin": "iniciar_sin_smart.sh", "con": "iniciar_con_smart.sh"}}}};
+const PUERTOS = [8765, 8766, 8767, 8768, 8769, 8770, 8771, 8772, 8773, 8774];
+const $ = (id) => document.getElementById(id);
+const mostrar = (id, v) => $(id).classList.toggle("oculto", !v);
+const guardado = (k) => { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } };
+const guardar = (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch (e) {} };
+const fmtMB = (n) => n.toLocaleString("es", { maximumFractionDigits: 1 });
+const fmtBytes = (b) => b >= 1e12 ? (b / 1e12).toFixed(2) + " TB" : b >= 1e9 ? (b / 1e9).toFixed(2) + " GB" : b >= 1e6 ? (b / 1e6).toFixed(1) + " MB" : (b / 1e3).toFixed(0) + " KB";
+
+// ---------------- Detección del sistema ----------------
+function detectarSO() {
+  const ua = navigator.userAgent || "";
+  const plat = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+  if (/Android/i.test(ua)) return "android";
+  if (/iPhone|iPad|iPod/i.test(ua) || (plat === "MacIntel" && navigator.maxTouchPoints > 1)) return "ios";
+  if (/CrOS/.test(ua)) return "chromeos";
+  if (/Win/i.test(plat) || /Windows/.test(ua)) return "windows";
+  if (/Mac/i.test(plat) || /Mac OS X/.test(ua)) return "macos";
+  if (/Linux|X11/.test(ua)) return "linux";
+  return "desconocido";
+}
+function detectarNavegador() {
+  const ua = navigator.userAgent;
+  if (/Edg\//.test(ua)) return "Edge"; if (/OPR\//.test(ua)) return "Opera"; if (/Firefox\//.test(ua)) return "Firefox";
+  if (/Chrome\//.test(ua)) return "Chrome"; if (/Safari\//.test(ua)) return "Safari"; return "navegador";
+}
+const NOMBRES_SO = { windows: "Windows", macos: "macOS", linux: "Linux", android: "Android", ios: "iOS / iPadOS", chromeos: "ChromeOS", desconocido: "sistema desconocido" };
+const SO = detectarSO(), NAV = detectarNavegador();
+const SO_SOPORTA_AGENTE = ["windows", "macos", "linux"].includes(SO);
+const TIENE_OPFS = !!(navigator.storage && navigator.storage.getDirectory && window.Worker);
+const TIENE_CARPETA = typeof window.showDirectoryPicker === "function";
+
+function iniciarSistema() {
+  $("soTexto").textContent = `${NOMBRES_SO[SO]} · ${NAV}` + (navigator.hardwareConcurrency ? ` · ${navigator.hardwareConcurrency} núcleos` : "") + (navigator.deviceMemory ? ` · ≥${navigator.deviceMemory} GB RAM` : "");
+  if (!SO_SOPORTA_AGENTE) {
+    $("soAviso").textContent = `El programa completo no existe para ${NOMBRES_SO[SO]}: solo está disponible el modo navegador.`;
+    $("btnModoAgente").disabled = true; $("btnModoAgente").textContent = "No disponible en este sistema";
+  }
+  const hash = $("tablaHash");
+  Object.entries(SITIO.paquetes).forEach(([so, p]) => {
+    const tr = document.createElement("tr"), a = document.createElement("td"), b = document.createElement("td");
+    a.textContent = `${NOMBRES_SO[so]} (${fmtBytes(p.tam)})`; b.textContent = p.sha256; tr.append(a, b); hash.appendChild(tr);
+  });
+}
+
+// ---------------- Cambio de modo ----------------
+function irModo(modo) {
+  mostrar("elegir", modo === null); mostrar("sistema", modo === null);
+  mostrar("panelAgente", modo === "agente"); mostrar("panelNavegador", modo === "navegador");
+  if (modo === "agente") { prepararDescarga(); arrancarCiclo(); }
+  window.scrollTo(0, 0);
+}
+$("btnModoAgente").onclick = () => irModo("agente");
+$("btnModoNav").onclick = () => { irModo("navegador"); iniciarNavegador(); };
+$("btnVolverA").onclick = () => irModo(null);
+$("btnVolverN").onclick = () => irModo(null);
+
+// =====================================================================
+//                              MODO AGENTE
+// =====================================================================
+let BASE = null, token = "", conectado = false, timer = null, vistaRes = false, cicloActivo = false, infoAgente = null;
+const claveSes = () => "diag_sesion|" + BASE;
+const abortable = (ms) => { const c = new AbortController(); setTimeout(() => c.abort(), ms); return c.signal; };
+
+function prepararDescarga() {
+  const quiereSmart = $("chkSmart").checked;
+  const p = SITIO.paquetes[SO];
+  const cont = $("descargaTexto"); cont.textContent = "";
+  const t = (tag, txt, cls) => { const e = document.createElement(tag); e.textContent = txt; if (cls) e.className = cls; return e; };
+  if (!p) { cont.appendChild(t("p", "No hay paquete para tu sistema.")); return; }
+  const lanz = quiereSmart ? p.lanzadores.con : p.lanzadores.sin;
+  const a = t("a", `⬇ Descargar para ${NOMBRES_SO[SO]} (${fmtBytes(p.tam)})`, "btn primario"); a.href = p.archivo; a.setAttribute("download", "");
+  cont.appendChild(a);
+  const ol = document.createElement("ol"); ol.style.cssText = "margin:12px 0 0 18px;padding:0;color:#e2e8f0;font-size:.92rem";
+  const pasos = SO === "windows"
+    ? ["Abre el .zip descargado y extrae la carpeta (clic derecho → Extraer todo).",
+       `Haz doble clic en ${lanz}.` + (quiereSmart ? " Windows pedirá permiso de Administrador: es lo que autoriza la lectura SMART." : " No se pedirán permisos especiales."),
+       "Se abre una ventana negra con un PIN de 6 dígitos: déjala abierta.",
+       "Si Windows muestra «Windows protegió su PC», elige «Más información → Ejecutar de todas formas» (el archivo es un script sin firma digital)."]
+    : [`Descomprime el .zip y abre una terminal en la carpeta.`,
+       `Ejecuta: bash ${lanz}` + (quiereSmart ? " (pedirá tu contraseña para leer SMART)." : "."),
+       "Se muestra un PIN de 6 dígitos en la terminal: déjala abierta."];
+  pasos.forEach(x => ol.appendChild(t("li", x)));
+  cont.appendChild(ol);
+  cont.appendChild(t("p", quiereSmart ? "✔ Elegiste AUTORIZAR SMART. Usa el lanzador «CON_SMART»." : "ℹ No autorizaste SMART. Usa el lanzador «SIN_SMART» (puedes volver atrás si quieres autorizarlo).", "peq"));
+  const otros = Object.entries(SITIO.paquetes).filter(([so]) => so !== SO).map(([so, q]) => `<a href="${q.archivo}" style="color:#93c5fd">${NOMBRES_SO[so]}</a>`);
+  $("descargaOtros").innerHTML = "¿Otro sistema? " + otros.join(" · ");
+  if (NAV === "Safari") { mostrar("notaNavegador", true); $("notaNavegador").textContent = "⚠ Safari suele bloquear que una página segura hable con un programa local. Si no se conecta, abre esta página en Chrome, Edge o Firefox."; }
+}
+$("chkSmart").addEventListener("change", () => { if (!$("panelAgente").classList.contains("oculto")) prepararDescarga(); });
+
+async function api(ruta, op = {}) {
+  if (!BASE) throw new Error("Sin conexión con el programa");
+  const r = await fetch(BASE + ruta, Object.assign({}, op, { headers: Object.assign({ "X-Token": token, "Content-Type": "application/json" }, op.headers || {}) }));
+  let j = {}; try { j = await r.json(); } catch (e) {}
+  if (!r.ok) { const e = new Error(j.error || r.statusText); e.auth = r.status === 403; throw e; }
+  return j;
+}
+async function detectar() {
+  const cand = BASE ? [BASE] : PUERTOS.map(p => "http://127.0.0.1:" + p);
+  for (const b of cand) {
+    try {
+      const r = await fetch(b + "/api/ping", { signal: abortable(1500) }); const j = await r.json();
+      if (j.app === "diagnostico-almacenamiento") { BASE = b; infoAgente = j; return true; }
+    } catch (e) {}
+  }
+  BASE = null; return false;
+}
+function estadoConexion(ok) {
+  conectado = ok;
+  $("punto").className = "punto " + (ok ? "ok" : "no");
+  $("conexion").textContent = ok ? "Programa conectado" : "Programa no detectado";
+  mostrar("bloqueDescarga", !ok);
+  if (!ok) ["bloqueLogin", "bloqueConfig", "bloqueProgreso", "bloqueResultado", "bloqueError"].forEach(x => mostrar(x, false));
+  if (ok && infoAgente) {
+    $("estadoSmart").textContent = " · SMART: " + (infoAgente.smart ? "autorizado" : "no autorizado");
+    const v = $("avisoVersion");
+    if (infoAgente.version !== SITIO.version) { v.textContent = `El programa instalado es ${infoAgente.version} y esta página espera ${SITIO.version}. Descarga de nuevo el paquete si algo falla.`; v.classList.remove("oculto"); } else v.classList.add("oculto");
+    if ($("chkSmart").checked && !infoAgente.smart) { v.textContent = "Marcaste autorizar SMART, pero el programa se abrió SIN SMART. Ciérralo y abre el lanzador «CON_SMART» si quieres datos de salud."; v.classList.remove("oculto"); }
+  } else $("estadoSmart").textContent = "";
+}
+function pedirPin() {
+  clearTimeout(timer);
+  ["bloqueConfig", "bloqueProgreso", "bloqueResultado", "bloqueError"].forEach(x => mostrar(x, false));
+  mostrar("bloqueLogin", true); $("pin").focus();
+}
+async function loginPin() {
+  $("pinError").textContent = "";
+  try {
+    const r = await fetch(BASE + "/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: $("pin").value.trim() }) });
+    let j = {}; try { j = await r.json(); } catch (e) {}
+    if (!r.ok) throw new Error(j.error || "No se pudo iniciar sesión");
+    token = j.token; guardar(claveSes(), token); $("pin").value = "";
+    await iniciarSesion();
+  } catch (e) { $("pinError").textContent = e.message; }
+}
+async function iniciarSesion() {
+  token = guardado(claveSes());
+  try { await cargarInfo(); mostrar("bloqueLogin", false); mostrar("bloqueConfig", !vistaRes); sondear(); } catch (e) { if (e.auth) pedirPin(); }
+}
+async function cargarInfo() {
+  const i = await api("/api/info");
+  $("equipoInfo").textContent = `Equipo: ${i.equipo} · ${i.so}` + (i.admin ? " · con privilegios elevados" : "");
+  const cont = $("unidades"); cont.textContent = "";
+  if (!i.unidades.length) cont.textContent = "No se detectaron unidades.";
+  i.unidades.forEach(u => {
+    const l = document.createElement("label"), c = document.createElement("input"); c.type = "checkbox"; c.checked = true; c.value = u.unidad;
+    l.append(c, document.createTextNode(` ${u.unidad} (Disco ${u.disco})`)); cont.appendChild(l);
+  });
+  $("btnIniciar").disabled = !i.unidades.length; mostrar("ultimoRep", !!i.ultimo_reporte);
+}
+async function iniciar() {
+  const unidades = [...document.querySelectorAll("#unidades input:checked")].map(c => c.value);
+  if (!unidades.length) { alert("Selecciona al menos una unidad."); return; }
+  try {
+    await api("/api/iniciar", { method: "POST", body: JSON.stringify({ modo: document.querySelector('input[name="modo"]:checked').value, categorias: $("chkCat").checked, unidades }) });
+    vistaRes = false; sondear();
+  } catch (e) { if (e.auth) pedirPin(); else alert("No se pudo iniciar: " + e.message); }
+}
+async function mostrarReporte(ruta) {
+  const r = await fetch(BASE + "/reporte", { headers: { "X-Token": token } });
+  if (!r.ok) { alert("No hay un reporte disponible."); return; }
+  const html = await r.text();
+  $("visor").srcdoc = html; $("lnkNueva").href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  $("rutaGuardado").textContent = ruta ? "Guardado en tu equipo: " + ruta : ""; vistaRes = true;
+  mostrar("bloqueResultado", true); mostrar("bloqueConfig", false); mostrar("bloqueProgreso", false);
+}
+function pintar(s) {
+  const activo = s.estado === "corriendo" || s.estado === "cancelando";
+  mostrar("bloqueConfig", !activo && !vistaRes); mostrar("bloqueProgreso", activo); $("btnCancelar").disabled = s.estado === "cancelando";
+  if (activo) {
+    $("progTitulo").textContent = s.estado === "cancelando" ? "Cancelando…" : (s.progreso.unidad ? `Analizando ${s.progreso.unidad}` : "En ejecución…");
+    $("progEtapa").textContent = s.progreso.etapa || ""; $("barraFill").style.width = s.progreso.pct + "%";
+    $("progPct").textContent = `${s.progreso.pct}% · unidad ${Math.min(s.progreso.idx + 1, s.progreso.total)} de ${s.progreso.total}`;
+    const c = $("consola"); c.textContent = s.consola.join("\n"); c.scrollTop = c.scrollHeight;
+  }
+  mostrar("bloqueError", s.estado === "error" || s.estado === "cancelado");
+  if (s.estado === "error") $("bloqueError").textContent = "La prueba falló: " + (s.error || "error desconocido");
+  if (s.estado === "cancelado") $("bloqueError").textContent = "La prueba fue cancelada.";
+  if (s.estado === "terminado" && !vistaRes) mostrarReporte(s.ruta_reporte);
+}
+async function sondear() {
+  clearTimeout(timer);
+  try { const s = await api("/api/estado"); pintar(s); if (s.estado === "corriendo" || s.estado === "cancelando") timer = setTimeout(sondear, 1000); }
+  catch (e) { if (e.auth) pedirPin(); }
+}
+let fallos = 0;
+async function ciclo() {
+  if ($("panelAgente").classList.contains("oculto")) { cicloActivo = false; return; }
+  const ok = await detectar();
+  if (ok && !conectado) { estadoConexion(true); fallos = 0; await iniciarSesion(); }
+  else if (!ok) { fallos++; if (!conectado || fallos >= 2) estadoConexion(false); } else fallos = 0;
+  setTimeout(ciclo, conectado ? 4000 : 2000);
+}
+function arrancarCiclo() { if (!cicloActivo) { cicloActivo = true; ciclo(); } }
+$("btnPin").onclick = loginPin; $("pin").addEventListener("keydown", e => { if (e.key === "Enter") loginPin(); });
+$("btnIniciar").onclick = iniciar;
+$("btnCancelar").onclick = async () => { try { await api("/api/cancelar", { method: "POST", body: "{}" }); sondear(); } catch (e) { if (e.auth) pedirPin(); } };
+$("btnOtra").onclick = () => { vistaRes = false; mostrar("bloqueResultado", false); mostrar("bloqueError", false); mostrar("bloqueConfig", true); cargarInfo().catch(() => {}); };
+$("lnkUltimo").onclick = (e) => { e.preventDefault(); mostrarReporte(""); };
+
+// =====================================================================
+//                            MODO NAVEGADOR
+// =====================================================================
+const CATEGORIAS = ["Sistema Operativo", "Programas y Aplicaciones", "Imágenes y Videos", "Audio", "Documentos", "Comprimidos y Respaldos", "Desarrollo y Bases de Datos", "Temporales y Archivos de Sistema", "Otros"];
+const COLORES_CAT = ["#64748b", "#3b82f6", "#8b5cf6", "#ec4899", "#10b981", "#f59e0b", "#06b6d4", "#f97316", "#94a3b8"];
+const EXT_CAT = {
+  "Imágenes y Videos": "jpg jpeg png gif bmp tif tiff webp heic heif raw cr2 nef arw dng svg psd ico mp4 mkv avi mov wmv flv webm m4v mpg mpeg 3gp",
+  "Audio": "mp3 wav flac aac ogg wma m4a aiff opus",
+  "Documentos": "doc docx xls xlsx xlsm ppt pptx pdf txt rtf odt ods odp csv md epub msg pst ost",
+  "Comprimidos y Respaldos": "zip rar 7z tar gz tgz bz2 xz iso img bak vhd vhdx vmdk vdi wim cab ova",
+  "Desarrollo y Bases de Datos": "py js ts jsx tsx java c cpp h cs go rs php rb sh ps1 bat json xml yml yaml html css sql db sqlite sqlite3 mdb accdb mdf ldf ipynb pyc",
+  "Programas y Aplicaciones": "exe msi dll apk appx msix",
+  "Temporales y Archivos de Sistema": "tmp temp log etl dmp cache crdownload part" };
+const MAPA_EXT = {}; Object.entries(EXT_CAT).forEach(([c, e]) => e.split(" ").forEach(x => MAPA_EXT[x] = c));
+const ARCH_SISTEMA = new Set(["pagefile.sys", "hiberfil.sys", "swapfile.sys"]);
+const REGLAS_RAIZ = { "windows": "Sistema Operativo", "program files": "Programas y Aplicaciones", "program files (x86)": "Programas y Aplicaciones", "programdata": "Programas y Aplicaciones", "$recycle.bin": "Temporales y Archivos de Sistema", "system volume information": "Temporales y Archivos de Sistema", "windows.old": "Sistema Operativo" };
+const REGLAS_NIVEL = { "temp": "Temporales y Archivos de Sistema", "tmp": "Temporales y Archivos de Sistema", "node_modules": "Desarrollo y Bases de Datos", ".git": "Desarrollo y Bases de Datos" };
+function clasificarArchivo(nombre) {
+  const n = nombre.toLowerCase(); if (ARCH_SISTEMA.has(n)) return "Temporales y Archivos de Sistema";
+  const i = n.lastIndexOf("."); return (i >= 0 && MAPA_EXT[n.slice(i + 1)]) || "Otros";
+}
+async function escanearCarpeta(raiz, ctl, onProg) {
+  const cats = {}; CATEGORIAS.forEach(c => cats[c] = { bytes: 0, archivos: 0 });
+  let total = 0, inacc = 0; const pila = [[raiz, null, true]]; const t0 = performance.now();
+  while (pila.length && !ctl.cancelado) {
+    const [dir, catDir, esRaiz] = pila.pop();
+    try {
+      for await (const [nombre, h] of dir.entries()) {
+        if (ctl.cancelado) break;
+        if (h.kind === "directory") { const n = nombre.toLowerCase(); pila.push([h, catDir || (esRaiz ? REGLAS_RAIZ[n] : null) || REGLAS_NIVEL[n] || null, false]); }
+        else { try { const f = await h.getFile(); const c = catDir || clasificarArchivo(nombre); cats[c].bytes += f.size; cats[c].archivos++; total++; if (total % 100 === 0) onProg(total); } catch (e) { inacc++; } }
+      }
+    } catch (e) { inacc++; }
+  }
+  return { cats, total, inacc, segundos: (performance.now() - t0) / 1000, completo: !ctl.cancelado };
+}
+function llenarAleatorio(buf) { for (let i = 0; i < buf.length; i += 65536) crypto.getRandomValues(buf.subarray(i, Math.min(i + 65536, buf.length))); }
+
+const WORKER_SRC = `
+self.onmessage = async (ev) => {
+  const { mb } = ev.data; let root, h;
+  try {
+    root = await navigator.storage.getDirectory();
+    const fh = await root.getFileHandle('bench.tmp', { create: true });
+    h = await fh.createSyncAccessHandle();
+    const bloque = 4 * 1024 * 1024, buf = new Uint8Array(bloque);
+    for (let i = 0; i < bloque; i += 65536) crypto.getRandomValues(buf.subarray(i, i + 65536));
+    const n = Math.max(1, Math.ceil(mb / 4)), totalMB = n * 4;
+    let t0 = performance.now();
+    for (let i = 0; i < n; i++) { h.write(buf, { at: i * bloque }); if (i % 8 === 0) postMessage({ p: 0.5 * (i + 1) / n, f: 'Escribiendo' }); }
+    h.flush(); const tW = (performance.now() - t0) / 1000;
+    const rb = new Uint8Array(bloque); t0 = performance.now();
+    for (let i = 0; i < n; i++) { h.read(rb, { at: i * bloque }); if (i % 8 === 0) postMessage({ p: 0.5 + 0.3 * (i + 1) / n, f: 'Leyendo' }); }
+    const tR = (performance.now() - t0) / 1000;
+    const iter = 2000, b4 = new Uint8Array(4096); crypto.getRandomValues(b4); const slots = Math.floor(n * bloque / 4096);
+    t0 = performance.now();
+    for (let i = 0; i < iter; i++) { h.write(b4, { at: Math.floor(Math.random() * slots) * 4096 }); if (i % 400 === 0) postMessage({ p: 0.8 + 0.2 * i / iter, f: 'Escrituras aleatorias 4K' }); }
+    h.flush(); const t4 = (performance.now() - t0) / 1000;
+    h.close(); await root.removeEntry('bench.tmp');
+    postMessage({ fin: true, mb: totalMB, escritura: totalMB / tW, lectura: totalMB / tR, iops: iter / t4, latencia: t4 / iter * 1000 });
+  } catch (e) { try { if (h) h.close(); if (root) await root.removeEntry('bench.tmp'); } catch (_) {} postMessage({ error: String(e && e.message || e) }); }
+};`;
+
+const RES = { so: SO, navegador: NAV, fecha: null, sistema: {}, opfs: null, carpeta: null, categorias: null };
+let carpetaHandle = null, ctlNav = { cancelado: false };
+function progNav(p, txt) { mostrar("progNav", true); $("barraNav").style.width = Math.round(p * 100) + "%"; $("textoNav").textContent = txt; }
+function bloquearNav(v) { ["btnOpfs", "btnElegirCarpeta", "btnMedirCarpeta", "btnCatCarpeta"].forEach(id => { $(id).disabled = v || (["btnMedirCarpeta", "btnCatCarpeta"].includes(id) && !carpetaHandle); }); mostrar("btnCancelNav", v); }
+
+async function iniciarNavegador() {
+  const partes = [TIENE_OPFS ? "almacenamiento del navegador ✔" : "almacenamiento del navegador ✘", TIENE_CARPETA ? "carpetas ✔" : "carpetas ✘ (usa Chrome o Edge de escritorio)"];
+  $("capacidades").textContent = partes.join(" · ");
+  $("btnOpfs").disabled = !TIENE_OPFS; $("btnElegirCarpeta").disabled = !TIENE_CARPETA;
+  RES.fecha = new Date().toLocaleString("es"); RES.sistema = { cpu: navigator.hardwareConcurrency || null, ram_gb: navigator.deviceMemory || null };
+  try { const e = await navigator.storage.estimate(); RES.sistema.cuota = e.quota; RES.sistema.usado = e.usage; } catch (e) {}
+  pintarResultados();
+}
+function medirOpfs() {
+  bloquearNav(true); ctlNav = { cancelado: false }; progNav(0, "Preparando…");
+  const w = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" })));
+  $("btnCancelNav").onclick = () => { w.terminate(); bloquearNav(false); progNav(0, "Cancelado (el archivo temporal del navegador puede borrarse al limpiar datos del sitio)."); };
+  w.onmessage = (ev) => {
+    const d = ev.data;
+    if (d.p !== undefined && !d.fin) progNav(d.p, d.f + "…");
+    if (d.error) { progNav(0, "Error: " + d.error); bloquearNav(false); w.terminate(); }
+    if (d.fin) { RES.opfs = { mb: d.mb, lectura: d.lectura, escritura: d.escritura, iops: d.iops, latencia: d.latencia }; progNav(1, "Listo"); bloquearNav(false); w.terminate(); pintarResultados(); }
+  };
+  w.postMessage({ mb: parseInt($("selMB").value, 10) });
+}
+async function elegirCarpeta() {
+  try { carpetaHandle = await window.showDirectoryPicker({ mode: "readwrite", id: "diag-bench" }); }
+  catch (e) { if (e.name !== "AbortError") progNav(0, "No se pudo abrir la carpeta: " + e.message); return; }
+  $("carpetaNombre").textContent = "Carpeta: " + carpetaHandle.name; $("btnMedirCarpeta").disabled = false; $("btnCatCarpeta").disabled = false;
+}
+async function medirCarpeta() {
+  bloquearNav(true); ctlNav = { cancelado: false }; $("btnCancelNav").onclick = () => { ctlNav.cancelado = true; };
+  const nombre = ".diag_bench_" + Date.now() + ".tmp"; const mb = parseInt($("selMB").value, 10);
+  try {
+    const bloque = new Uint8Array(8 * 1024 * 1024); llenarAleatorio(bloque); const n = Math.max(1, Math.ceil(mb / 8));
+    const fh = await carpetaHandle.getFileHandle(nombre, { create: true });
+    let t0 = performance.now(); const w = await fh.createWritable();
+    for (let i = 0; i < n; i++) { if (ctlNav.cancelado) throw new Error("cancelado"); await w.write(bloque); progNav(0.5 * (i + 1) / n, "Escribiendo en la carpeta…"); }
+    await w.close(); const tW = (performance.now() - t0) / 1000;
+    const f = await fh.getFile(); t0 = performance.now(); const rd = f.stream().getReader(); let leido = 0;
+    for (;;) { const { done, value } = await rd.read(); if (done) break; leido += value.length; progNav(0.5 + 0.5 * leido / f.size, "Leyendo…"); if (ctlNav.cancelado) { await rd.cancel(); throw new Error("cancelado"); } }
+    const tR = (performance.now() - t0) / 1000; const totalMB = n * 8;
+    RES.carpeta = { nombre: carpetaHandle.name, mb: totalMB, escritura: totalMB / tW, lectura: totalMB / tR }; progNav(1, "Listo");
+  } catch (e) { progNav(0, e.message === "cancelado" ? "Cancelado." : "Error: " + e.message); }
+  finally { try { await carpetaHandle.removeEntry(nombre); } catch (e) {} bloquearNav(false); pintarResultados(); }
+}
+async function analizarCarpeta() {
+  bloquearNav(true); ctlNav = { cancelado: false }; $("btnCancelNav").onclick = () => { ctlNav.cancelado = true; };
+  try {
+    progNav(0.05, "Recorriendo la carpeta…");
+    const r = await escanearCarpeta(carpetaHandle, ctlNav, (n) => progNav(0.5, `Analizando… ${n.toLocaleString()} archivos`));
+    RES.categorias = Object.assign({ nombre: carpetaHandle.name }, r); progNav(1, r.completo ? "Listo" : "Análisis parcial (cancelado)");
+  } catch (e) { progNav(0, "Error: " + e.message); }
+  bloquearNav(false); pintarResultados();
+}
+function kpi(etq, valor) { const d = document.createElement("div"); d.className = "kpi"; const s = document.createElement("span"); s.textContent = etq; const b = document.createElement("b"); b.textContent = valor; d.append(s, b); return d; }
+function pintarResultados() {
+  const k = $("kpisNav"); k.textContent = ""; let alguno = false;
+  const S = RES.sistema; if (S.cpu) k.appendChild(kpi("Núcleos de CPU", S.cpu)); if (S.ram_gb) k.appendChild(kpi("RAM (aprox.)", "≥ " + S.ram_gb + " GB"));
+  if (S.cuota) { k.appendChild(kpi("Cuota del navegador", fmtBytes(S.cuota))); k.appendChild(kpi("Usado por esta página", fmtBytes(S.usado || 0))); }
+  if (RES.opfs) { alguno = true; k.append(kpi("Navegador · escritura", fmtMB(RES.opfs.escritura) + " MB/s"), kpi("Navegador · lectura", fmtMB(RES.opfs.lectura) + " MB/s"), kpi("Navegador · IOPS 4K (escritura)", Math.round(RES.opfs.iops).toLocaleString()), kpi("Latencia media", RES.opfs.latencia.toFixed(3) + " ms")); }
+  if (RES.carpeta) { alguno = true; k.append(kpi("Carpeta · escritura", fmtMB(RES.carpeta.escritura) + " MB/s"), kpi("Carpeta · lectura", fmtMB(RES.carpeta.lectura) + " MB/s")); }
+  const cont = $("catsNav"); cont.textContent = "";
+  if (RES.categorias) {
+    alguno = true; const c = RES.categorias; const suma = Object.values(c.cats).reduce((a, x) => a + x.bytes, 0) || 1;
+    const t = document.createElement("h3"); t.textContent = `Categorías en «${c.nombre}» · ${c.total.toLocaleString()} archivos · ${fmtBytes(suma)}${c.completo ? "" : " (parcial)"}`; cont.appendChild(t);
+    CATEGORIAS.forEach((nom, i) => {
+      const v = c.cats[nom]; const fila = document.createElement("div"); fila.className = "catfila";
+      const a = document.createElement("span"); a.textContent = nom; const bar = document.createElement("div"); bar.className = "catbarra";
+      const rel = document.createElement("i"); rel.style.cssText = `width:${(v.bytes / suma * 100).toFixed(1)}%;background:${COLORES_CAT[i]}`; bar.appendChild(rel);
+      const x = document.createElement("span"); x.className = "peq"; x.textContent = `${(v.bytes / suma * 100).toFixed(1)}% · ${fmtBytes(v.bytes)} · ${v.archivos.toLocaleString()}`;
+      fila.append(a, bar, x); cont.appendChild(fila);
+    });
+  }
+  mostrar("resNav", k.children.length > 0 || alguno);
+}
+function descargarArchivo(nombre, contenido, tipo) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([contenido], { type: tipo })); a.download = nombre; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+function cargarScript(src) { return new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => no(new Error("No se pudo cargar " + src)); document.head.appendChild(s); }); }
+async function exportarExcel() {
+  const fecha = new Date().toISOString().slice(0, 10);
+  const filas = [["Informe de diagnóstico (modo navegador)"], ["Fecha", RES.fecha], ["Sistema", NOMBRES_SO[SO]], ["Navegador", NAV], ["Núcleos CPU", RES.sistema.cpu || "N/D"], ["RAM aprox. (GB)", RES.sistema.ram_gb || "N/D"], [],
+    ["Prueba", "Escritura MB/s", "Lectura MB/s", "IOPS 4K", "Latencia ms", "Tamaño MB"]];
+  if (RES.opfs) filas.push(["Almacenamiento del navegador", +RES.opfs.escritura.toFixed(1), +RES.opfs.lectura.toFixed(1), Math.round(RES.opfs.iops), +RES.opfs.latencia.toFixed(3), RES.opfs.mb]);
+  if (RES.carpeta) filas.push(["Carpeta: " + RES.carpeta.nombre, +RES.carpeta.escritura.toFixed(1), +RES.carpeta.lectura.toFixed(1), "N/D", "N/D", RES.carpeta.mb]);
+  const cat = [["Categoría", "Archivos", "Tamaño (bytes)", "% del total"]];
+  if (RES.categorias) { const suma = Object.values(RES.categorias.cats).reduce((a, x) => a + x.bytes, 0) || 1; CATEGORIAS.forEach(n => { const v = RES.categorias.cats[n]; cat.push([n, v.archivos, v.bytes, +(v.bytes / suma * 100).toFixed(2)]); }); }
+  try {
+    if (!window.XLSX) await cargarScript("https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js");
+    const wb = XLSX.utils.book_new(); const a = XLSX.utils.aoa_to_sheet(filas); a["!cols"] = [{ wch: 34 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, a, "Resumen");
+    if (cat.length > 1) { const c = XLSX.utils.aoa_to_sheet(cat); c["!cols"] = [{ wch: 36 }, { wch: 12 }, { wch: 18 }, { wch: 12 }]; XLSX.utils.book_append_sheet(wb, c, "Categorías"); }
+    XLSX.writeFile(wb, `Diagnostico_navegador_${fecha}.xlsx`);
+  } catch (e) {   // sin internet para la librería: CSV
+    descargarArchivo(`Diagnostico_navegador_${fecha}.csv`, "﻿" + filas.concat([[]], cat).map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(",")).join("\n"), "text/csv");
+  }
+}
+$("btnOpfs").onclick = medirOpfs; $("btnElegirCarpeta").onclick = elegirCarpeta; $("btnMedirCarpeta").onclick = medirCarpeta; $("btnCatCarpeta").onclick = analizarCarpeta;
+$("btnXlsx").onclick = exportarExcel; $("btnJson").onclick = () => descargarArchivo("diagnostico_navegador.json", JSON.stringify(RES, null, 2), "application/json");
+
+iniciarSistema();
+</script>
+</body>
+</html>
