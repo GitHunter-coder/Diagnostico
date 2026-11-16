@@ -75,6 +75,17 @@ def comando_programa():
     """Partes del comando que vuelve a ejecutar este mismo programa."""
     return [sys.executable] if EMPAQUETADO else [sys.executable, os.path.abspath(sys.argv[0])]
 
+def relanzar_como_admin(clave):
+    """Abre una copia con privilegios y SMART autorizado (Windows pedirá permiso). True si Windows la lanzó."""
+    try:
+        partes = comando_programa()
+        args = partes[1:] + ["--cliente", "--smart", "--protocolo", f"{PROTOCOLO}://iniciar?n={clave}&smart=1"]
+        r = ctypes.windll.shell32.ShellExecuteW(None, "runas", partes[0], " ".join(f'"{x}"' for x in args), None, 1)
+        return int(r) > 32
+    except Exception as e:
+        escribir_log_depuracion(f"ERROR relanzando como administrador: {e!r}")
+        return False
+
 def elevar_privilegios():
     """Solicita elevación UAC automáticamente (solo Windows)."""
     if not ES_WINDOWS:
@@ -2648,6 +2659,18 @@ class ManejadorWeb(http.server.BaseHTTPRequestHandler):
         if es_login:
             return self._login(datos)
 
+        if url.path == "/api/elevar":
+            if not ES_WINDOWS or es_administrador():
+                return self._json(200, {"ya": True})
+            with TRABAJO.lock:
+                if TRABAJO.estado in ("corriendo", "cancelando"):
+                    return self._json(409, {"error": "Hay una prueba en ejecución"})
+            clave = generar_pin()
+            registrar_acceso("ACCION", self._ip_cliente(), "/api/elevar (autorizar SMART)")
+            if not relanzar_como_admin(clave):
+                return self._json(409, {"error": "Windows no concedió el permiso de administrador"})
+            _CERRAR.set()
+            return self._json(200, {"nonce": clave})
         if url.path == "/api/cerrar":
             with TRABAJO.lock:
                 if TRABAJO.estado in ("corriendo", "cancelando"):
@@ -3023,6 +3046,12 @@ def main_web():
     print("=" * 82)
 
     existente = agente_en_ejecucion()
+    if existente and proto.get("n"):           # relanzado con privilegios: espera a que el agente anterior se cierre
+        for _ in range(40):
+            time.sleep(0.5)
+            existente = agente_en_ejecucion()
+            if not existente:
+                break
     if existente:
         print(f"\n El agente ya está en ejecución (puerto {existente}). Puedes cerrar esta ventana.")
         if not desde_navegador:
@@ -3067,6 +3096,8 @@ def main_web():
     ruta_panel = escribir_panel_html(directorio, token)
     if cliente and proto.get("n"):
         ManejadorWeb.pin, ManejadorWeb.pin_un_uso = proto["n"].upper(), True
+    elif cliente:
+        ManejadorWeb.pin_un_uso = True         # la página lo recibe en la URL (#k=...) y se conecta sola
     registrado = registrar_protocolo(False) if not cliente else (registrar_protocolo(True) if "--registrar" in sys.argv else False)
     url = f"http://localhost:{puerto}/"
     print(f"\n Panel de control (archivo):  {ruta_panel}")
@@ -3094,16 +3125,16 @@ def main_web():
         print("  MODO CLIENTE: este programa mide ESTE equipo y solo obedece a la página web autorizada")
         print(f"    Datos SMART: {'AUTORIZADOS (se leerán datos de salud de tus discos)' if SMART_AUTORIZADO else 'NO autorizados (solo velocidad, capacidad y categorías)'}")
         print(f"    Página autorizada: {', '.join(sorted(ManejadorWeb.origenes_web)) or '(ninguna: usa el panel local)'}")
-        if ManejadorWeb.pin_un_uso:
+        if proto.get("n"):
             print("\n    Iniciado desde la página web: se conectará sola, no necesitas PIN.")
         else:
-            print(f"\n    >>> PIN para la página web:  {ManejadorWeb.pin}  <<<")
+            print(f"\n    La página se abre y se conecta sola. Solo si no lo hace, escribe este PIN en ella:  {ManejadorWeb.pin}")
         print(f"  Se cierra solo en {horas:g} h. Nada se envía a internet: la página habla con este programa en tu propio equipo.")
         print("  Para detenerlo: cierra esta ventana o presiona Ctrl+C.")
         print(" " + "=" * 64)
         if sitio and not desde_navegador:
             try:
-                webbrowser.open(sitio)
+                webbrowser.open(sitio.rstrip("/") + "/#k=" + ManejadorWeb.pin)
             except Exception:
                 pass
     elif tunel_rapido:

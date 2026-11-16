@@ -74,13 +74,14 @@ LANZADORES = {
 }
 
 LANZADORES_EXE = {
- "Iniciar_SIN_SMART.bat": '@echo off\r\ncd /d "%~dp0"\r\ndiagnostico_agente.exe --cliente --registrar\r\nif errorlevel 1 pause\r\n',
- "Iniciar_CON_SMART.bat": '@echo off\r\ncd /d "%~dp0"\r\ndiagnostico_agente.exe --cliente --smart --registrar\r\nif errorlevel 1 pause\r\n',
+ "Iniciar.bat": '@echo off\r\ncd /d "%~dp0"\r\ndiagnostico_agente.exe --cliente --registrar\r\nif errorlevel 1 pause\r\n',
  "Quitar_acceso_navegador.bat": '@echo off\r\ncd /d "%~dp0"\r\ndiagnostico_agente.exe --desinstalar-protocolo\r\npause\r\n',
 }
 
 def leeme_exe(texto):
     """Con .exe ya no hace falta Python."""
+    texto = re.sub(r"2\) Elige UNA opción:.*?(?=3\) )", "2) Haz doble clic en Iniciar.bat. Se abre tu navegador en la página y se conecta solo.\n   Si quieres datos SMART, marca la casilla de autorización en la página y pulsa «Autorizar SMART»; Windows pedirá permiso de Administrador.\n", texto, flags=re.S)
+    texto = texto.replace("La primera vez se abre una ventana con un PIN de 6 dígitos: escríbelo en la página web.", "La página se conecta sola (si no, escribe en ella el PIN que se muestra en la ventana).")
     return re.sub(r"Requisito: Python 3\..*?\n", "No necesitas instalar Python. Si Windows muestra «Windows protegió su PC», elige «Más información > Ejecutar de todas formas» (el programa no tiene firma digital).\n", texto, count=1)
 
 def hornear_agente(origen, url_sitio):
@@ -139,7 +140,7 @@ def main():
             agregar(z, "Diagnostico/LEEME.txt", leeme_exe(LEEME[so]) if con_exe else LEEME[so])
         datos = open(destino, "rb").read()
         paquetes[so] = {"archivo": f"descargas/{nombre}", "tam": len(datos), "sha256": hashlib.sha256(datos).hexdigest(),
-                        "lanzadores": {"sin": [k for k in lanz if k.lower().startswith("iniciar") and "sin" in k.lower()][0], "con": [k for k in lanz if k.lower().startswith("iniciar") and "con" in k.lower()][0]}}
+                        "lanzadores": ({"sin": "Iniciar.bat", "con": "Iniciar.bat", "unico": True} if con_exe else {"sin": [k for k in lanz if k.lower().startswith("iniciar") and "sin" in k.lower()][0], "con": [k for k in lanz if k.lower().startswith("iniciar") and "con" in k.lower()][0]})}
 
     datos_sitio = {"version": version, "origen": origen, "paquetes": paquetes}
     html = open(PLANTILLA, encoding="utf-8").read().replace("__DATOS_SITIO__", json.dumps(datos_sitio, ensure_ascii=False))
