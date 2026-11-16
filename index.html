@@ -87,6 +87,8 @@
       <div class="fila"><div><span id="punto" class="punto"></span><b id="conexion">Buscando el programa en tu equipo…</b>
         <span id="estadoSmart" class="peq"></span></div><button class="neutro" id="btnVolverA">← Cambiar de modo</button></div>
       <div id="avisoVersion" class="peq oculto" style="margin-top:6px;color:#fde68a"></div>
+      <div id="bloqueSmart" class="oculto" style="margin-top:8px"><button class="verde" id="btnSmart">🔓 Autorizar SMART ahora</button>
+        <span class="peq">Windows pedirá permiso de administrador. El programa se reinicia solo y la página se reconecta.</span></div>
     </div>
 
     <div id="bloqueLanzar" class="card oculto">
@@ -176,7 +178,7 @@
 </div>
 
 <script>
-const SITIO = {"version": "V3", "origen": "https://githunter-coder.github.io", "paquetes": {"windows": {"archivo": "descargas/diagnostico_windows.zip", "tam": 9193579, "sha256": "0b86bebff4c2325398ecd53031978f87e39cb7524be7829610ce6e56d776be2f", "lanzadores": {"sin": "Iniciar_SIN_SMART.bat", "con": "Iniciar_CON_SMART.bat"}}, "macos": {"archivo": "descargas/diagnostico_macos.zip", "tam": 48981, "sha256": "8b4c206b17f522b1ff8bde6295632245a23b68400cfd2e5e85dbdc6680772ca5", "lanzadores": {"sin": "Iniciar_SIN_SMART.command", "con": "Iniciar_CON_SMART.command"}}, "linux": {"archivo": "descargas/diagnostico_linux.zip", "tam": 48923, "sha256": "6c39cedb752ee94b34b8e808d90f667b565827ff1a08ad564b845f494b0ebd78", "lanzadores": {"sin": "iniciar_sin_smart.sh", "con": "iniciar_con_smart.sh"}}}};
+const SITIO = {"version": "V3", "origen": "https://githunter-coder.github.io", "paquetes": {"windows": {"archivo": "descargas/diagnostico_windows.zip", "tam": 9192865, "sha256": "3294d6b59a9efa84e6c3e26029933122deab0b0c77304aa5be1f6d0410932ebb", "lanzadores": {"sin": "Iniciar.bat", "con": "Iniciar.bat", "unico": true}}, "macos": {"archivo": "descargas/diagnostico_macos.zip", "tam": 49384, "sha256": "f0deb711540e1946217a199cb90625c7e00ab9932ac86bc3fb88b3ba5b28983d", "lanzadores": {"sin": "Iniciar_SIN_SMART.command", "con": "Iniciar_CON_SMART.command"}}, "linux": {"archivo": "descargas/diagnostico_linux.zip", "tam": 49326, "sha256": "5bd832d0a49b63189fcb03d2603d0e68bf1c2931e016ac74c38120580d52d38a", "lanzadores": {"sin": "iniciar_sin_smart.sh", "con": "iniciar_con_smart.sh"}}}};
 const PUERTOS = [8765, 8766, 8767, 8768, 8769, 8770, 8771, 8772, 8773, 8774];
 const $ = (id) => document.getElementById(id);
 const mostrar = (id, v) => $(id).classList.toggle("oculto", !v);
@@ -246,21 +248,21 @@ function prepararDescarga() {
   const cont = $("descargaTexto"); cont.textContent = "";
   const t = (tag, txt, cls) => { const e = document.createElement(tag); e.textContent = txt; if (cls) e.className = cls; return e; };
   if (!p) { cont.appendChild(t("p", "No hay paquete para tu sistema.")); return; }
-  const lanz = quiereSmart ? p.lanzadores.con : p.lanzadores.sin;
+  const lanz = quiereSmart ? p.lanzadores.con : p.lanzadores.sin, unico = !!p.lanzadores.unico;
   const a = t("a", `⬇ Descargar para ${NOMBRES_SO[SO]} (${fmtBytes(p.tam)})`, "btn primario"); a.href = p.archivo; a.setAttribute("download", "");
   cont.appendChild(a);
   const ol = document.createElement("ol"); ol.style.cssText = "margin:12px 0 0 18px;padding:0;color:#e2e8f0;font-size:.92rem";
   const pasos = SO === "windows"
     ? ["Abre el .zip descargado y extrae la carpeta (clic derecho → Extraer todo).",
-       `Haz doble clic en ${lanz}.` + (quiereSmart ? " Windows pedirá permiso de Administrador: es lo que autoriza la lectura SMART." : " No se pedirán permisos especiales."),
-       "Se abre una ventana negra con un PIN de 6 dígitos: déjala abierta y escribe el PIN aquí. Solo esta primera vez: el programa deja listo un acceso para que, la próxima visita, esta página lo abra sola.",
+       `Haz doble clic en ${lanz}.` + (unico ? (quiereSmart ? " Después, en esta página, pulsa «Autorizar SMART»: Windows pedirá permiso de Administrador." : " No se pedirán permisos especiales.") : (quiereSmart ? " Windows pedirá permiso de Administrador: es lo que autoriza la lectura SMART." : " No se pedirán permisos especiales.")),
+       "Se abre una ventana negra (déjala abierta) y tu navegador vuelve a esta página, que se conecta sola. El programa deja listo un acceso para que, la próxima visita, esta página lo abra sin descargar nada.",
        "Si Windows muestra «Windows protegió su PC», elige «Más información → Ejecutar de todas formas» (el archivo es un script sin firma digital)."]
     : [`Descomprime el .zip y abre una terminal en la carpeta.`,
        `Ejecuta: bash ${lanz}` + (quiereSmart ? " (pedirá tu contraseña para leer SMART)." : "."),
        "Se muestra un PIN de 6 dígitos en la terminal: déjala abierta."];
   pasos.forEach(x => ol.appendChild(t("li", x)));
   cont.appendChild(ol);
-  cont.appendChild(t("p", quiereSmart ? "✔ Elegiste AUTORIZAR SMART. Usa el lanzador «CON_SMART»." : "ℹ No autorizaste SMART. Usa el lanzador «SIN_SMART» (puedes volver atrás si quieres autorizarlo).", "peq"));
+  if (!unico) cont.appendChild(t("p", quiereSmart ? "✔ Elegiste AUTORIZAR SMART. Usa el lanzador «CON_SMART»." : "ℹ No autorizaste SMART. Usa el lanzador «SIN_SMART» (puedes volver atrás si quieres autorizarlo).", "peq"));
   const otros = Object.entries(SITIO.paquetes).filter(([so]) => so !== SO).map(([so, q]) => `<a href="${q.archivo}" style="color:#93c5fd">${NOMBRES_SO[so]}</a>`);
   $("descargaOtros").innerHTML = "¿Otro sistema? " + otros.join(" · ");
   if (NAV === "Safari") { mostrar("notaNavegador", true); $("notaNavegador").textContent = "⚠ Safari suele bloquear que una página segura hable con un programa local. Si no se conecta, abre esta página en Chrome, Edge o Firefox."; }
@@ -288,14 +290,19 @@ function estadoConexion(ok) {
   conectado = ok;
   $("punto").className = "punto " + (ok ? "ok" : "no");
   $("conexion").textContent = ok ? "Programa conectado" : (cerradoOk ? "Programa cerrado (diagnóstico terminado)" : "Programa no detectado");
-  mostrar("bloqueDescarga", !ok && !cerradoOk);
+  mostrar("bloqueDescarga", !ok && !cerradoOk && !(yaLanzado && Date.now() < limiteLanz));
   if (!ok) ["bloqueLogin", "bloqueConfig", "bloqueProgreso", ...(cerradoOk ? [] : ["bloqueResultado"]), "bloqueError"].forEach(x => mostrar(x, false));
   if (ok && infoAgente) {
     $("estadoSmart").textContent = " · SMART: " + (infoAgente.smart ? "autorizado" : "no autorizado");
     const v = $("avisoVersion");
     if (infoAgente.version !== SITIO.version) { v.textContent = `El programa instalado es ${infoAgente.version} y esta página espera ${SITIO.version}. Descarga de nuevo el paquete si algo falla.`; v.classList.remove("oculto"); } else v.classList.add("oculto");
-    if ($("chkSmart").checked && !infoAgente.smart) { v.textContent = "Marcaste autorizar SMART, pero el programa se abrió SIN SMART. Ciérralo y abre el lanzador «CON_SMART» si quieres datos de salud."; v.classList.remove("oculto"); }
-  } else $("estadoSmart").textContent = "";
+    const faltaSmart = $("chkSmart").checked && !infoAgente.smart;
+    if (faltaSmart) {
+      v.textContent = SO === "windows" ? "Marcaste autorizar SMART, pero el programa está abierto sin esos permisos." : "Marcaste autorizar SMART, pero el programa se abrió SIN SMART. Ciérralo y ábrelo con el lanzador «CON_SMART».";
+      v.classList.remove("oculto");
+    }
+    mostrar("bloqueSmart", faltaSmart && SO === "windows");
+  } else { $("estadoSmart").textContent = ""; mostrar("bloqueSmart", false); }
 }
 function pedirPin() {
   clearTimeout(timer);
@@ -400,6 +407,18 @@ function revisarLanzamiento() {
 $("btnReabrir").onclick = () => lanzarPrograma();
 
 let nonceUsado = false;
+async function autorizarSmart() {
+  $("btnSmart").disabled = true;
+  try {
+    const r = await api("/api/elevar", { method: "POST", body: "{}" });
+    if (r.ya) { $("btnSmart").disabled = false; return; }
+    nonceLanz = r.nonce; nonceUsado = false; BASE = null; infoAgente = null; conectado = false;
+    yaLanzado = true; limiteLanz = Date.now() + 60000;
+    $("lanzarTitulo").textContent = "Reiniciando el programa con permisos…"; $("lanzarTexto").textContent = "Cuando el programa vuelva a abrirse, esta página se reconectará sola.";
+    mostrar("bloqueLanzar", true); estadoConexion(false);
+  } catch (e) { $("btnSmart").disabled = false; alert("No se pudo autorizar SMART: " + e.message); }
+}
+$("btnSmart").onclick = autorizarSmart;
 async function canjearPin(pin) {
   const r = await fetch(BASE + "/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin }) });
   let j = {}; try { j = await r.json(); } catch (e) {}
@@ -590,6 +609,14 @@ $("btnOpfs").onclick = medirOpfs; $("btnElegirCarpeta").onclick = elegirCarpeta;
 $("btnXlsx").onclick = exportarExcel; $("btnJson").onclick = () => descargarArchivo("diagnostico_navegador.json", JSON.stringify(RES, null, 2), "application/json");
 
 iniciarSistema();
+// Si el programa abrió esta página con una clave de un solo uso (#k=...), entra directo en modo completo y se conecta sola.
+(function () {
+  const m = /[#&]k=([A-Za-z0-9_-]{4,64})/.exec(location.hash);
+  if (!m) return;
+  nonceLanz = m[1]; nonceUsado = false; intentoAuto = true;
+  try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+  irModo("agente");
+})();
 </script>
 </body>
 </html>
