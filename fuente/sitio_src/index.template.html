@@ -38,46 +38,53 @@
   .catbarra { height:12px; border-radius:6px; background:#0f172a; overflow:hidden; border:1px solid var(--borde); } .catbarra > i { display:block; height:100%; }
   iframe { width:100%; height:92vh; border:1px solid var(--borde); border-radius:12px; background:var(--bg); }
   .oculto { display:none !important; }
+  .chip { display:inline-flex; align-items:center; gap:6px; background:#0f172a; border:1px solid var(--borde); color:#cbd5e1; border-radius:999px; padding:3px 11px; font-size:.78rem; margin:0 6px 4px 0; }
+  .chip.ok { color:#6ee7b7; border-color:#065f46; background:#052e1b; } .chip.mut { color:var(--sub); }
+  .paso { display:flex; align-items:center; gap:10px; margin:0 0 18px; font-size:.82rem; color:var(--sub); flex-wrap:wrap; }
+  .paso span.n { display:inline-flex; width:22px; height:22px; border-radius:50%; align-items:center; justify-content:center; border:1px solid var(--borde); font-weight:700; font-size:.75rem; }
+  .paso .p { display:flex; align-items:center; gap:8px; } .paso .p.act { color:var(--txt); font-weight:600; } .paso .p.act .n { background:var(--azul); border-color:var(--azul); color:#fff; } .paso .p.hecho .n { background:#065f46; border-color:#065f46; color:#fff; }
+  .paso .sep { width:28px; height:1px; background:var(--borde); }
+  .card h2 { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  details.card > summary { cursor:pointer; font-weight:600; color:#cbd5e1; list-style:none; } details.card > summary::before { content:"▸ "; color:var(--sub); } details.card[open] > summary::before { content:"▾ "; }
+  details.pasos { margin-top:12px; } details.pasos > summary { cursor:pointer; color:#93c5fd; font-size:.88rem; }
+  .btn-grande { font-size:1rem; padding:12px 20px; width:100%; }
+  button:focus-visible, a.btn:focus-visible, summary:focus-visible { outline:2px solid #93c5fd; outline-offset:2px; }
+  @media (prefers-reduced-motion:no-preference){ .card { transition:border-color .15s; } .card:hover { border-color:#475569; } }
+
   table.hash { width:100%; border-collapse:collapse; font-size:.8rem; } table.hash td { padding:4px 8px; border-bottom:1px solid var(--borde); word-break:break-all; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header style="margin-bottom:18px">
+  <header style="margin-bottom:14px">
     <h1>Diagnóstico de Almacenamiento</h1>
-    <div class="sub">Mide velocidad, capacidad y estado de los discos de <b>tu propio equipo</b>.</div>
-    <div style="margin-top:10px"><span class="pill">🔒 Todo ocurre en tu equipo. Esta página no envía tus datos a ningún servidor.</span></div>
+    <div class="sub">Velocidad, capacidad y salud de los discos de <b>tu equipo</b>.</div>
+    <div style="margin-top:10px"><span class="pill">🔒 Todo se ejecuta en tu equipo<span class="tip" tabindex="0" data-tip="Esta página no envía tus datos a ningún servidor. Las mediciones se hacen en tu navegador o con un programa que se ejecuta en tu propio equipo.">i</span></span></div>
   </header>
 
-  <section class="card" id="sistema">
-    <div class="fila"><div><h2 style="margin:0">Tu equipo</h2><div id="soTexto" class="sub">Detectando…</div></div><div id="soAviso" class="peq"></div></div>
+  <div class="paso" id="stepper" aria-label="Progreso">
+    <div class="p act" id="p1"><span class="n">1</span>Elegir</div><span class="sep"></span>
+    <div class="p" id="p2"><span class="n">2</span>Ejecutar</div><span class="sep"></span>
+    <div class="p" id="p3"><span class="n">3</span>Resultados</div>
+  </div>
+
+  <section id="sistema" style="margin-bottom:14px">
+    <div class="fila"><div id="chipsSistema"><span class="chip" id="soTexto">Detectando…</span></div><div id="soAviso" class="peq"></div></div>
   </section>
 
   <section id="elegir" class="grid2">
     <article class="card" id="cardNav">
-      <h2>⚡ Diagnóstico rápido <span class="peq">(un clic, sin instalar nada)</span></h2>
-      <div class="sub" style="margin-bottom:8px">Se ejecuta aquí mismo, en tu navegador. Funciona en Windows, Android, iPad, Mac y Linux.</div>
-      <h3>Qué mide</h3>
-      <ul class="lista"><li class="si">Velocidad de lectura/escritura e IOPS del almacenamiento</li>
-        <li class="si">Espacio disponible, procesador y memoria</li>
-        <li class="si">Opcional: uso por categoría de archivos de una carpeta que tú elijas (Chrome/Edge de escritorio)</li>
-        <li class="si">Reporte descargable en Excel</li></ul>
-      <h3 style="margin-top:10px">Qué NO puede medir</h3>
-      <ul class="lista"><li class="no">Estado SMART, temperatura, horas de uso ni desgaste (ningún navegador puede leerlos)</li></ul>
-      <div style="margin-top:14px"><button class="primario" id="btnModoNav">▶ Iniciar diagnóstico rápido</button></div>
+      <h2>⚡ Diagnóstico rápido <span class="chip ok">Sin instalar</span></h2>
+      <div class="sub" style="margin-bottom:16px">Se ejecuta en tu navegador, en un clic.<span class="tip" tabindex="0" data-tip="Mide: velocidad de lectura/escritura, IOPS y latencia del almacenamiento; capacidad disponible para el navegador; uso por categoría de archivos de una carpeta que elijas (solo Chrome o Edge de escritorio); reporte en Excel. NO mide: SMART, temperatura, horas de uso ni desgaste: ningún navegador puede leerlos.">i</span></div>
+      <button class="primario btn-grande" id="btnModoNav">▶ Iniciar diagnóstico rápido</button>
     </article>
 
     <article class="card" id="cardAgente">
-      <h2>🩺 Diagnóstico completo <span class="peq">(con SMART, requiere un programa)</span></h2>
-      <div class="sub" style="margin-bottom:8px">Todos los discos, con salud y desgaste. Solo la primera vez hay que descargar y abrir el programa; después esta página lo abre con un clic (Windows).</div>
-      <h3>Qué mide</h3>
-      <ul class="lista"><li class="si">Todos los discos: velocidad, IOPS, capacidad y categorías de archivos</li>
-        <li class="si">Opcional: SMART (salud, temperatura, horas de uso, desgaste, errores)</li>
-        <li class="si">Informe con dashboard y Excel</li></ul>
-      <label class="op" style="margin-top:12px"><input type="checkbox" id="chkSmart">
-        <span><b>Autorizo leer datos SMART de mis discos</b>
-          <small>Se leen contadores de salud del disco (no tus archivos). Se pedirá permiso de administrador en tu equipo. Sin esto, la prueba funciona igual, pero sin salud/temperatura.</small></span></label>
-      <div style="margin-top:6px"><button class="primario" id="btnModoAgente">▶ Iniciar diagnóstico completo</button></div>
+      <h2>🩺 Diagnóstico completo <span class="chip">Con SMART</span></h2>
+      <div class="sub" style="margin-bottom:12px">Todos tus discos, con salud y desgaste.<span class="tip" tabindex="0" data-tip="Mide todos los discos: velocidad, IOPS, capacidad y categorías de archivos; opcionalmente SMART (salud, temperatura, horas de uso, desgaste, errores). Genera dashboard y Excel. Requiere abrir un programa pequeño en tu equipo: solo la primera vez, después esta página lo abre con un clic (Windows).">i</span></div>
+      <label class="op"><input type="checkbox" id="chkSmart">
+        <span><b>Autorizo leer datos SMART</b><span class="tip" tabindex="0" data-tip="Se leen contadores de salud del disco (no tus archivos). Se pedirá permiso de administrador en tu equipo. Sin esto la prueba funciona igual, pero sin salud ni temperatura.">i</span><small>Contadores de salud, nunca tus archivos.</small></span></label>
+      <button class="primario btn-grande" id="btnModoAgente">▶ Iniciar diagnóstico completo</button>
     </article>
   </section>
 
@@ -97,13 +104,13 @@
     </div>
 
     <div id="bloqueDescarga" class="card aviso">
-      <h2 style="color:#fde68a">Primera vez · descarga y abre el programa</h2>
+      <h2 style="color:#fde68a">Primera vez: descarga y abre el programa</h2>
       <div id="bloqueReabrir" class="oculto" style="margin-bottom:12px"><button class="verde" id="btnReabrir">▶ Abrir el programa ya instalado</button>
         <span class="peq">Si ya lo usaste antes en este equipo, no hace falta descargar nada.</span></div>
       <div id="descargaTexto"></div>
       <div id="descargaOtros" class="peq" style="margin-top:12px"></div>
       <div id="notaNavegador" class="peq oculto" style="margin-top:10px"></div>
-      <div class="peq" style="margin-top:10px">Esta página se conectará sola cuando el programa esté abierto. Si tu navegador pregunta si permite acceder a "este equipo/red local", acepta.</div>
+      <div class="peq" style="margin-top:10px">Se conectará sola cuando el programa esté abierto.<span class="tip" tabindex="0" data-tip="Si tu navegador pregunta si permite acceder a «este equipo» o a la red local, acepta: así la página puede hablar con el programa.">i</span></div>
     </div>
 
     <div id="bloqueLogin" class="card oculto">
@@ -149,16 +156,16 @@
     <div class="card"><div class="fila"><div><b>Modo navegador</b> <span class="peq" id="capacidades"></span></div><button class="neutro" id="btnVolverN">← Cambiar de modo</button></div></div>
     <div class="card">
       <h2>1 · Almacenamiento del navegador</h2>
-      <div class="sub" style="margin-bottom:10px">Mide el disco donde tu navegador guarda sus datos (normalmente el principal). Es una medición <b>referencial</b>: el sistema usa cachés que pueden favorecer los valores.</div>
+      <div class="sub" style="margin-bottom:10px">Mide el disco donde tu navegador guarda sus datos.<span class="tip" tabindex="0" data-tip="Es una medición referencial: el sistema usa cachés que pueden favorecer los valores.">i</span></div>
       <div class="fila"><label class="peq">Tamaño de prueba:
         <select id="selMB" style="background:#0f172a;color:#f1f5f9;border:1px solid #334155;border-radius:6px;padding:6px"><option value="64">64 MB</option><option value="256" selected>256 MB</option><option value="1024">1 GB</option></select></label>
         <label class="peq">Modo:
-        <select id="selModo" style="background:#0f172a;color:#f1f5f9;border:1px solid #334155;border-radius:6px;padding:6px"><option value="rapido" selected>Rápido (≈15 s)</option><option value="avanzado">Avanzado: prueba sostenida (≈1 min)</option></select></label>
+        <select id="selModo" style="background:#0f172a;color:#f1f5f9;border:1px solid #334155;border-radius:6px;padding:6px"><option value="rapido" selected>Rápido (≈15 s)</option><option value="avanzado">Avanzado (≈1 min)</option></select><span class="tip" tabindex="0" data-tip="Rápido: velocidad, IOPS y latencia. Avanzado: agrega una prueba sostenida de 45 s para ver si el rendimiento cae con el uso prolongado.">i</span></label>
         <button class="primario" id="btnOpfs">▶ Medir almacenamiento del navegador</button></div>
     </div>
     <div class="card">
       <h2>2 · Una carpeta de tu equipo <span class="peq">(Chrome / Edge de escritorio)</span></h2>
-      <div class="sub" style="margin-bottom:10px">Elige una carpeta (por ejemplo, en otro disco o unidad USB): se mide su velocidad de escritura/lectura y se clasifican sus archivos. La página <b>no sube ni guarda</b> el contenido; pedirá tu permiso y escribe un archivo temporal que borra al terminar.</div>
+      <div class="sub" style="margin-bottom:10px">Mide su velocidad y clasifica sus archivos.<span class="tip" tabindex="0" data-tip="Por ejemplo una carpeta en otro disco o en una unidad USB. La página no sube ni guarda el contenido; pedirá tu permiso y escribe un archivo temporal que borra al terminar.">i</span></div>
       <div class="fila"><span class="peq" id="carpetaNombre">Ninguna carpeta elegida</span>
         <span><button class="neutro" id="btnElegirCarpeta">📁 Elegir carpeta…</button>
         <button class="primario" id="btnMedirCarpeta" disabled>▶ Medir velocidad</button>
@@ -172,11 +179,11 @@
     </div>
   </section>
 
-  <section class="card" id="integridad">
-    <h2>Verificación de las descargas</h2>
-    <div class="peq" style="margin-bottom:8px">Si quieres comprobar que el archivo no fue alterado, compara su SHA-256 (Windows: <code>certutil -hashfile archivo.zip SHA256</code> · macOS/Linux: <code>shasum -a 256 archivo.zip</code>).</div>
+  <details class="card" id="integridad">
+    <summary>Verificar las descargas (SHA-256)</summary>
+    <div class="peq" style="margin:10px 0 8px">Compara el SHA-256 del archivo. Windows: <code>certutil -hashfile archivo.zip SHA256</code> · macOS/Linux: <code>shasum -a 256 archivo.zip</code>.</div>
     <table class="hash" id="tablaHash"></table>
-  </section>
+  </details>
 </div>
 
 <script src="modo_navegador.js"></script>
@@ -213,8 +220,10 @@ const SO_SOPORTA_AGENTE = ["windows", "macos", "linux"].includes(SO);
 const TIENE_OPFS = !!(navigator.storage && navigator.storage.getDirectory && window.Worker);
 const TIENE_CARPETA = typeof window.showDirectoryPicker === "function";
 
+const _st = document.createElement("style"); _st.textContent = TIPS_CSS; document.head.appendChild(_st); iniciarTips();
 function iniciarSistema() {
-  $("soTexto").textContent = `${NOMBRES_SO[SO]} · ${NAV}` + (navigator.hardwareConcurrency ? ` · ${navigator.hardwareConcurrency} núcleos` : "") + (navigator.deviceMemory ? ` · ≥${navigator.deviceMemory} GB RAM` : "");
+  const ch = $("chipsSistema"); ch.textContent = "";
+  [NOMBRES_SO[SO], NAV, navigator.hardwareConcurrency ? navigator.hardwareConcurrency + " núcleos" : "", navigator.deviceMemory ? "≥" + navigator.deviceMemory + " GB RAM" : ""].filter(Boolean).forEach(t => { const c = document.createElement("span"); c.className = "chip"; c.textContent = t; ch.appendChild(c); });
   if (!SO_SOPORTA_AGENTE) {
     $("soAviso").textContent = `El programa completo no existe para ${NOMBRES_SO[SO]}: solo está disponible el modo navegador.`;
     $("btnModoAgente").disabled = true; $("btnModoAgente").textContent = "No disponible en este sistema";
@@ -227,7 +236,9 @@ function iniciarSistema() {
 }
 
 // ---------------- Cambio de modo ----------------
+function setPaso(n) { [1, 2, 3].forEach(i => { const e = $("p" + i); e.classList.toggle("act", i === n); e.classList.toggle("hecho", i < n); }); }
 function irModo(modo) {
+  setPaso(modo === null ? 1 : 2);
   mostrar("elegir", modo === null); mostrar("sistema", modo === null);
   mostrar("panelAgente", modo === "agente"); mostrar("panelNavegador", modo === "navegador");
   if (modo === "agente") { yaLanzado = false; intentoAuto = false; prepararDescarga(); arrancarCiclo(); }
@@ -264,7 +275,7 @@ function prepararDescarga() {
        `Ejecuta: bash ${lanz}` + (quiereSmart ? " (pedirá tu contraseña para leer SMART)." : "."),
        "Se muestra un PIN de 6 dígitos en la terminal: déjala abierta."];
   pasos.forEach(x => ol.appendChild(t("li", x)));
-  cont.appendChild(ol);
+  const det = document.createElement("details"); det.className = "pasos"; const sm = document.createElement("summary"); sm.textContent = "Ver los pasos de instalación"; det.append(sm, ol); cont.appendChild(det);
   if (!unico) cont.appendChild(t("p", quiereSmart ? "✔ Elegiste AUTORIZAR SMART. Usa el lanzador «CON_SMART»." : "ℹ No autorizaste SMART. Usa el lanzador «SIN_SMART» (puedes volver atrás si quieres autorizarlo).", "peq"));
   const otros = Object.entries(SITIO.paquetes).filter(([so]) => so !== SO).map(([so, q]) => `<a href="${q.archivo}" style="color:#93c5fd">${NOMBRES_SO[so]}</a>`);
   $("descargaOtros").innerHTML = "¿Otro sistema? " + otros.join(" · ");
@@ -355,7 +366,7 @@ async function mostrarReporte(ruta, auto) {
   const r = await fetch(BASE + "/reporte", { headers: { "X-Token": token } });
   if (!r.ok) { alert("No hay un reporte disponible."); return; }
   const html = await r.text();
-  $("visor").srcdoc = html; $("lnkNueva").href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  setPaso(3); $("visor").srcdoc = html; $("lnkNueva").href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
   $("rutaGuardado").textContent = ruta ? "Guardado en tu equipo: " + ruta : ""; vistaRes = true;
   mostrar("bloqueResultado", true); mostrar("bloqueConfig", false); mostrar("bloqueProgreso", false);
   if (CERRAR_AL_TERMINAR && auto) cerrarPrograma();
@@ -573,7 +584,7 @@ async function pintarResultados() {
   if (!RES.opfs && !RES.carpeta && !RES.categorias) { mostrar("resNav", false); return; }
   try {
     DNAV = await construirDatosNav(RES, NOMBRES_SO); HTMLNAV = htmlInformeNav(DNAV);
-    $("visorNav").srcdoc = HTMLNAV; mostrar("resNav", true);
+    $("visorNav").srcdoc = HTMLNAV; mostrar("resNav", true); setPaso(3);
   } catch (e) { progNav(0, "No se pudo generar el informe: " + e.message); }
 }
 function descargarArchivo(nombre, contenido, tipo) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([contenido], { type: tipo })); a.download = nombre; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }

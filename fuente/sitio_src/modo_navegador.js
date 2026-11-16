@@ -5,6 +5,41 @@
 const UMBRALES_NAV = { escritura_obs: 100, escritura_crit: 20, iops_obs: 5000, iops_crit: 500, p99_obs: 10, p99_crit: 50, caida_obs: 30, caida_crit: 60, uso_obs: 90 };
 const VERSION_INFORME_NAV = "V3-nav";
 
+/* ---------------- Ayudas contextuales (globos) ---------------- */
+const TIPS_CSS = `
+.tip{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:6px;border:1px solid #64748b;border-radius:50%;font:600 10px/1 system-ui,sans-serif;color:#94a3b8;cursor:help;vertical-align:middle;user-select:none;flex:none}
+.tip:hover,.tip:focus-visible{color:#fff;border-color:#93c5fd;outline:none}
+[data-tip]:not(.tip){cursor:help}
+#tipBox{position:fixed;z-index:99999;max-width:280px;padding:9px 12px;border-radius:8px;background:#020617;color:#e2e8f0;border:1px solid #475569;box-shadow:0 8px 24px rgba(0,0,0,.45);font:400 12px/1.45 system-ui,sans-serif;text-transform:none;letter-spacing:0;text-align:left;pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s;left:0;top:0}
+#tipBox.v{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){#tipBox{transition:none}}`;
+function iniciarTips() {
+  const caja = document.createElement("div"); caja.id = "tipBox"; caja.setAttribute("role", "tooltip"); document.body.appendChild(caja);
+  let actual = null, t0 = 0;
+  const ocultar = () => { caja.classList.remove("v"); if (actual) actual.removeAttribute("aria-describedby"); actual = null; };
+  const mostrar = (el) => {
+    const t = el.getAttribute("data-tip"); if (!t) return;
+    caja.textContent = t; caja.classList.add("v"); actual = el; t0 = Date.now(); el.setAttribute("aria-describedby", "tipBox");
+    const r = el.getBoundingClientRect(), w = caja.offsetWidth, h = caja.offsetHeight, m = 8;
+    const x = Math.min(Math.max(m, r.left + r.width / 2 - w / 2), Math.max(m, window.innerWidth - w - m));
+    let y = r.top - h - 10; if (y < m) y = r.bottom + 10;
+    caja.style.left = x + "px"; caja.style.top = y + "px";
+  };
+  const buscar = (e) => (e.target && e.target.closest) ? e.target.closest("[data-tip]") : null;
+  const tactil = () => window.matchMedia && matchMedia("(hover: none)").matches;
+  document.addEventListener("mouseover", (e) => { if (tactil()) return; const el = buscar(e); if (el && el !== actual) mostrar(el); });
+  document.addEventListener("mouseout", (e) => { if (tactil()) return; const el = buscar(e); if (el && !(e.relatedTarget && el.contains(e.relatedTarget))) ocultar(); });
+  document.addEventListener("focusin", (e) => { const el = buscar(e); if (el) mostrar(el); });
+  document.addEventListener("focusout", (e) => { if (buscar(e)) ocultar(); });
+  document.addEventListener("click", (e) => {
+    const el = buscar(e);
+    if (el && el.classList.contains("tip")) e.preventDefault();            // el ⓘ nunca activa la casilla/enlace que lo contiene
+    if (el && tactil()) { if (actual !== el) mostrar(el); else if (Date.now() - t0 > 400) ocultar(); }   // el toque táctil también dispara mouseover: se ignora el rebote else if (!el) ocultar();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") ocultar(); });
+  window.addEventListener("scroll", ocultar, true);
+}
+
 /* ---------------- Medición (Web Worker sobre OPFS) ---------------- */
 const WORKER_NAV = `
 self.onmessage = async (ev) => {
@@ -183,9 +218,14 @@ function pintarDashboard(D) {
   const CATCOL = ["#64748b", "#3b82f6", "#8b5cf6", "#ec4899", "#10b981", "#f59e0b", "#06b6d4", "#f97316", "#94a3b8"];
   const K = D.kpis;
   Chart.defaults.color = "#cbd5e1"; Chart.defaults.borderColor = "rgba(148,163,184,.15)";
-  const card = (t, v, c) => '<div class="bg-slate-800/80 border border-slate-700/60 p-5 rounded-xl shadow-lg"><p class="text-xs font-medium text-slate-400 uppercase tracking-wider">' + t + '</p><p class="text-3xl font-bold ' + c + ' mt-2">' + v + '</p></div>';
-  $("kpis").innerHTML = card("Unidades evaluadas", K.unidades, "text-white") + card("Escritura máx.", f(K.escritura_max, 0) + ' <span class="text-sm text-slate-400">MB/s</span>', "text-emerald-400")
-    + card("Lectura máx.", f(K.lectura_max, 0) + ' <span class="text-sm text-slate-400">MB/s</span>', "text-blue-400") + card("Alertas activas", K.alertas, K.alertas > 0 ? "text-rose-500" : "text-emerald-400");
+  const tip = (t) => '<span class="tip" tabindex="0" data-tip="' + t + '">i</span>';
+  const card = (t, v, c, ay) => '<div class="bg-slate-800/80 border border-slate-700/60 p-5 rounded-xl shadow-lg"><p class="text-xs font-medium text-slate-400 uppercase tracking-wider">' + t + (ay ? tip(ay) : "") + '</p><p class="text-3xl font-bold ' + c + ' mt-2">' + v + '</p></div>';
+  $("kpis").innerHTML = card("Unidades evaluadas", K.unidades, "text-white", "Almacenamiento del navegador y, si la elegiste, la carpeta.") + card("Escritura máx.", f(K.escritura_max, 0) + ' <span class="text-sm text-slate-400">MB/s</span>', "text-emerald-400", "Mayor velocidad de escritura secuencial medida.")
+    + card("Lectura máx.", f(K.lectura_max, 0) + ' <span class="text-sm text-slate-400">MB/s</span>', "text-blue-400", "Mayor velocidad de lectura secuencial medida. Puede verse favorecida por cachés del sistema.") + card("Alertas activas", K.alertas, K.alertas > 0 ? "text-rose-500" : "text-emerald-400", "Hallazgos de severidad Alta.");
+  const cc = D.unidades.map((u) => u.conformidad), global = cc.indexOf("NO CONFORME") >= 0 ? "NO CONFORME" : (cc.indexOf("OBSERVACIÓN") >= 0 ? "OBSERVACIÓN" : "CONFORME");
+  const nAlta = D.hallazgos.filter((h) => h.severidad === "Alta").length, nMedia = D.hallazgos.filter((h) => h.severidad === "Media").length;
+  const colV = global === "CONFORME" ? "emerald" : (global === "OBSERVACIÓN" ? "amber" : "rose");
+  $("veredicto").innerHTML = '<div class="flex flex-wrap items-center gap-4 bg-' + colV + '-950/40 border border-' + colV + '-500/40 rounded-xl px-5 py-4"><span class="text-xs uppercase tracking-wider text-slate-400">Veredicto</span><span class="px-3 py-1 rounded-full text-sm font-bold bg-' + colV + '-900/70 text-' + colV + '-300">' + global + '</span><span class="text-sm text-slate-300">' + D.hallazgos.length + " hallazgos · " + nAlta + " alta(s) · " + nMedia + " media(s)</span>" + tip("Resumen de la conformidad de todas las unidades frente a los umbrales del proyecto. Detalle en «Hallazgos y recomendaciones».") + '<span class="ml-auto text-xs text-amber-400">Sin SMART (modo navegador)' + tip("Un navegador no puede leer SMART (salud, temperatura, desgaste). Para eso usa el diagnóstico completo con el programa local.") + "</span></div>";
   const dest = { 0: ["🚀", "blue"], 1: ["⚡", "emerald"], 2: ["🔁", "amber"], 3: ["📈", "purple"] };
   $("destacados").innerHTML = D.destacados.map((d, i) => { const [ic, c] = dest[i % 4];
     return '<div class="bg-gradient-to-br from-' + c + '-950/60 to-slate-900 border border-' + c + '-500/30 p-5 rounded-xl shadow-lg"><div class="flex items-center gap-2 mb-2"><span class="text-lg">' + ic + '</span><h4 class="text-xs font-bold uppercase tracking-wider text-' + c + '-400">' + esc(d.indicador) + '</h4></div><p class="text-sm font-bold text-white truncate">' + esc(d.unidad) + '</p><p class="text-2xl font-black text-' + c + '-400 mt-1">' + esc(d.valor) + '</p></div>'; }).join("");
@@ -219,6 +259,8 @@ function pintarDashboard(D) {
   const badge = (c) => '<span class="px-2 py-1 rounded text-xs font-bold ' + (c === "CONFORME" ? "bg-emerald-900/60 text-emerald-300" : c === "OBSERVACIÓN" ? "bg-amber-900/60 text-amber-300" : "bg-rose-900/60 text-rose-300") + '">' + esc(c) + '</span>';
   $("detalle").innerHTML = D.unidades.map((u) => '<tr class="border-b border-slate-700/40 hover:bg-slate-700/20"><td class="p-3 font-bold text-white">' + esc(u.unidad) + '</td><td class="p-3">' + esc(u.modelo) + '<div class="text-xs text-slate-400">' + esc(u.tipo) + '</div></td><td class="p-3 text-right">' + f(u.escritura) + '</td><td class="p-3 text-right">' + f(u.lectura) + '</td><td class="p-3 text-right">' + f(u.iops_w, 0) + '</td><td class="p-3 text-right">' + f(u.iops_r, 0) + '</td><td class="p-3 text-right">' + f(u.lat_avg, 3) + '</td><td class="p-3 text-right">' + f(u.lat_p99, 3) + '</td><td class="p-3 text-right">' + (u.caida_pct == null ? "N/D" : f(u.caida_pct, 0) + " %") + '</td><td class="p-3 text-slate-400">N/D</td><td class="p-3">' + badge(u.conformidad) + '</td></tr>').join("");
   $("hall").innerHTML = D.hallazgos.length ? D.hallazgos.map((h) => '<tr class="border-b border-slate-700/40"><td class="p-3 font-bold text-white">' + esc(h.unidad) + '</td><td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ' + (h.severidad === "Alta" ? "bg-rose-900/60 text-rose-300" : h.severidad === "Media" ? "bg-amber-900/60 text-amber-300" : "bg-blue-900/60 text-blue-300") + '">' + esc(h.severidad) + '</span></td><td class="p-3">' + esc(h.hallazgo) + '</td><td class="p-3 text-slate-300">' + esc(h.recomendacion) + '</td></tr>').join("") : '<tr><td class="p-3" colspan="4">Sin hallazgos.</td></tr>';
+  $("nHall").textContent = "(" + D.hallazgos.length + ")"; $("nNotas").textContent = "(" + D.notas.length + ")";
+  if (nAlta + nMedia > 0) $("detHall").open = true;
   $("notas").innerHTML = D.notas.map((n) => "<li>" + esc(n) + "</li>").join("");
   const A = D.auditoria; $("audit").textContent = "ID " + A.id + " · " + A.inicio + " · duración " + A.duracion + " · huella SHA-256 " + String(A.huella).slice(0, 16) + "…";
   $("subtitulo").textContent = A.navegador + " en " + A.so + " · modo " + A.modo;
@@ -226,10 +268,11 @@ function pintarDashboard(D) {
 
 function htmlInformeNav(D, incluirExcel) {
   const datos = JSON.stringify(D).replace(/</g, "\\u003c");
-  const th = (t, r) => '<th class="p-3 ' + (r ? "text-right " : "") + 'text-xs font-semibold text-slate-400 uppercase tracking-wider">' + t + "</th>";
+  const th = (t, r, ay) => '<th class="p-3 ' + (r ? "text-right " : "") + 'text-xs font-semibold text-slate-400 uppercase tracking-wider">' + t + (ay ? '<span class="tip" tabindex="0" data-tip="' + ay + '">i</span>' : "") + "</th>";
   return `<!DOCTYPE html>
 <html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard de rendimiento (modo navegador)</title>
+<style>${TIPS_CSS} summary{list-style:none} summary::-webkit-details-marker{display:none} summary::before{content:"▸";margin-right:8px;color:#64748b} details[open]>summary::before{content:"▾"}</style>
 <script src="https://cdn.tailwindcss.com"><\/script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"><\/script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"><\/script>
@@ -238,32 +281,34 @@ function htmlInformeNav(D, incluirExcel) {
 <div class="max-w-7xl mx-auto px-4 py-8">
   <header class="mb-8 border-b border-slate-800 pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
     <div><h1 class="text-3xl font-extrabold tracking-tight text-white">${D.titulo}</h1>
-      <p class="text-slate-400 mt-1"><span id="subtitulo"></span> <span class="text-xs text-amber-400 italic">· Modo navegador: sin SMART</span></p></div>
+      <p class="text-slate-400 mt-1"><span id="subtitulo"></span> <span class="text-xs text-slate-500">· Modo navegador</span></p></div>
     <button onclick="descargarExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2.5 rounded-lg border border-emerald-500 shadow-lg">📥 Descargar Reporte Excel</button>
   </header>
+  <div id="veredicto" class="mb-6"></div>
   <div id="kpis" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
   <div id="destacados" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"></div>
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-    <div class="bg-slate-800/80 border border-slate-700/60 p-6 rounded-xl shadow-lg"><h3 class="text-lg font-bold text-white mb-4">Evolución del rendimiento (MB/s en el tiempo)</h3><div class="relative h-72"><canvas id="lineChart"></canvas></div></div>
-    <div class="bg-slate-800/80 border border-slate-700/60 p-6 rounded-xl shadow-lg"><h3 class="text-lg font-bold text-white mb-4">Rendimiento Secuencial (MB/s)</h3><div class="relative h-72"><canvas id="perfChart"></canvas></div></div>
+    <div class="bg-slate-800/80 border border-slate-700/60 p-6 rounded-xl shadow-lg"><h3 class="text-lg font-bold text-white mb-4">Evolución del rendimiento<span class="tip" tabindex="0" data-tip="MB/s medidos durante la escritura. En modo avanzado incluye una fase sostenida: si la curva baja, el equipo limita el rendimiento (calor o caché llena).">i</span></h3><div class="relative h-72"><canvas id="lineChart"></canvas></div></div>
+    <div class="bg-slate-800/80 border border-slate-700/60 p-6 rounded-xl shadow-lg"><h3 class="text-lg font-bold text-white mb-4">Rendimiento Secuencial (MB/s)<span class="tip" tabindex="0" data-tip="Lectura y escritura de bloques grandes (4 MB). Indica la velocidad para copiar archivos grandes.">i</span></h3><div class="relative h-72"><canvas id="perfChart"></canvas></div></div>
   </div>
-  <div class="mb-8"><h3 class="text-xl font-bold text-white mb-4">Capacidad (cuota del navegador)</h3><div id="capGeneral"></div></div>
+  <div class="mb-8"><h3 class="text-xl font-bold text-white mb-4">Capacidad<span class="tip" tabindex="0" data-tip="Es la cuota que el navegador asigna a esta página, no el tamaño del disco físico. Un navegador no puede conocer el espacio libre real.">i</span></h3><div id="capGeneral"></div></div>
   <div id="secCat" class="mb-8 hidden"><h3 id="catTitulo" class="text-xl font-bold text-white mb-4"></h3>
     <div class="bg-slate-800/80 border border-slate-700/60 p-6 rounded-xl shadow-lg grid lg:grid-cols-2 gap-6 items-center"><div class="relative h-72"><canvas id="catChart"></canvas></div>
     <table class="w-full text-sm"><thead><tr class="border-b border-slate-700">${th("Categoría")}${th("Archivos", 1)}${th("Tamaño", 1)}${th("%", 1)}</tr></thead><tbody id="catTabla"></tbody></table></div></div>
   <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl shadow-lg overflow-hidden mb-8"><div class="p-6 border-b border-slate-700/60"><h3 class="text-lg font-bold text-white">Detalle Técnico de Unidades</h3></div>
-    <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-900/60"><tr>${th("Unidad")}${th("Modelo / tipo")}${th("Escritura MB/s", 1)}${th("Lectura MB/s", 1)}${th("IOPS 4K esc.", 1)}${th("IOPS 4K lect.", 1)}${th("Lat. media ms", 1)}${th("Lat. p99 ms", 1)}${th("Caída sostenida", 1)}${th("SMART")}${th("Conformidad")}</tr></thead><tbody id="detalle"></tbody></table></div></div>
-  <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl shadow-lg overflow-hidden mb-8"><div class="p-6 border-b border-slate-700/60"><h3 class="text-lg font-bold text-white">Hallazgos y recomendaciones</h3></div>
-    <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-900/60"><tr>${th("Unidad")}${th("Severidad")}${th("Hallazgo")}${th("Recomendación")}</tr></thead><tbody id="hall"></tbody></table></div></div>
-  <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 mb-8"><h3 class="text-lg font-bold text-white mb-3">Notas y limitaciones</h3><ul id="notas" class="list-disc ml-5 space-y-1 text-sm text-slate-300"></ul></div>
+    <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-900/60"><tr>${th("Unidad")}${th("Modelo / tipo")}${th("Escritura MB/s", 1, "Velocidad de escritura secuencial (bloques de 4 MB).")}${th("Lectura MB/s", 1, "Velocidad de lectura secuencial (bloques de 4 MB).")}${th("IOPS 4K esc.", 1, "Escrituras aleatorias de 4 KB por segundo: mide la agilidad con muchos archivos pequeños.")}${th("IOPS 4K lect.", 1, "Lecturas aleatorias de 4 KB por segundo.")}${th("Lat. media ms", 1, "Tiempo promedio por operación de escritura 4K, en milisegundos. Menos es mejor.")}${th("Lat. p99 ms", 1, "El 99 % de las operaciones tardó menos que este valor. Detecta picos de lentitud.")}${th("Caída sostenida", 1, "Cuánto baja el rendimiento entre el inicio y el final de la prueba sostenida (modo avanzado).")}${th("SMART", 0, "Salud del disco. No medible desde el navegador.")}${th("Conformidad", 0, "Resultado frente a los umbrales de referencia del proyecto.")}</tr></thead><tbody id="detalle"></tbody></table></div></div>
+  <details id="detHall" class="bg-slate-800/80 border border-slate-700/60 rounded-xl shadow-lg overflow-hidden mb-8"><summary class="p-6 cursor-pointer text-lg font-bold text-white">Hallazgos y recomendaciones <span id="nHall" class="text-sm font-normal text-slate-400"></span></summary>
+    <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-900/60"><tr>${th("Unidad")}${th("Severidad")}${th("Hallazgo")}${th("Recomendación")}</tr></thead><tbody id="hall"></tbody></table></div></details>
+  <details class="bg-slate-800/60 border border-slate-700/60 rounded-xl mb-8"><summary class="p-6 cursor-pointer text-lg font-bold text-white">Notas y limitaciones <span id="nNotas" class="text-sm font-normal text-slate-400"></span></summary><ul id="notas" class="list-disc ml-11 mr-6 pb-6 space-y-1 text-sm text-slate-300"></ul></details>
   <p id="audit" class="text-xs text-slate-500 text-center"></p>
 </div>
 <script>
 const DATOS_EXCEL = ${datos};
 ${pintarDashboard.toString()}
+${iniciarTips.toString()}
 ${construirExcelNav.toString()}
 function descargarExcel() { const wb = construirExcelNav(DATOS_EXCEL, XLSX); XLSX.writeFile(wb, "Reporte_Diagnostico_Navegador_" + DATOS_EXCEL.auditoria.id + ".xlsx"); }
-window.addEventListener("load", function () { try { pintarDashboard(DATOS_EXCEL); } catch (e) { document.body.insertAdjacentHTML("afterbegin", '<p style="color:#fecaca;padding:12px">No se pudieron cargar los gráficos (se necesita conexión para Chart.js): ' + e.message + "</p>"); } });
+window.addEventListener("load", function () { iniciarTips(); try { pintarDashboard(DATOS_EXCEL); } catch (e) { document.body.insertAdjacentHTML("afterbegin", '<p style="color:#fecaca;padding:12px">No se pudieron cargar los gráficos (se necesita conexión para Chart.js): ' + e.message + "</p>"); } });
 <\/script></body></html>`;
 }
 
