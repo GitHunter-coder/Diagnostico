@@ -125,6 +125,7 @@
         <label class="op"><input type="radio" name="modo" value="2"><span><b>Test Avanzado</b><small>Estrés térmico sostenido (~2 min por unidad).</small></span></label>
         <label class="op"><input type="checkbox" id="chkCat" checked><span><b>Analizar uso por categoría de archivos</b><small>Recorre la unidad; puede tardar varios minutos en discos grandes.</small></span></label>
       </div>
+      <label class="op"><input type="checkbox" id="chkCerrar" checked><span><b>Cerrar el programa al terminar</b><small>Cuando el reporte esté listo, el programa se apaga solo y su ventana se cierra. Para otra prueba, esta página lo vuelve a abrir.</small></span></label>
       <div class="fila" style="margin-top:12px"><span class="peq">Se escribe un archivo temporal en cada unidad y se elimina al terminar.</span><button class="primario" id="btnIniciar">▶ Iniciar prueba</button></div>
       <div id="ultimoRep" class="peq oculto" style="margin-top:10px"><a href="#" id="lnkUltimo" style="color:#93c5fd">Ver el último reporte generado</a></div>
     </div>
@@ -175,7 +176,7 @@
 </div>
 
 <script>
-const SITIO = {"version": "V3", "origen": "https://githunter-coder.github.io", "paquetes": {"windows": {"archivo": "descargas/diagnostico_windows.zip", "tam": 49357, "sha256": "5b030a4579ea1b2232286521e29e8de14a42a07417a78302ddb6932a90eb1de7", "lanzadores": {"sin": "Iniciar_SIN_SMART.bat", "con": "Iniciar_CON_SMART.bat"}}, "macos": {"archivo": "descargas/diagnostico_macos.zip", "tam": 48692, "sha256": "0a00d60b144f00233b8e38ea857c06a082182086939bd6dbaddc467c91bd98f5", "lanzadores": {"sin": "Iniciar_SIN_SMART.command", "con": "Iniciar_CON_SMART.command"}}, "linux": {"archivo": "descargas/diagnostico_linux.zip", "tam": 48634, "sha256": "6f68cbeb6b67c68cb348796872b752abd8a288deba4c772e28f61b178407218e", "lanzadores": {"sin": "iniciar_sin_smart.sh", "con": "iniciar_con_smart.sh"}}}};
+const SITIO = {"version": "V3", "origen": "https://githunter-coder.github.io", "paquetes": {"windows": {"archivo": "descargas/diagnostico_windows.zip", "tam": 49451, "sha256": "7aab15831df0f641b9ec9a20d8558e3a319c34daf3b48b626b20969170a114ea", "lanzadores": {"sin": "Iniciar_SIN_SMART.bat", "con": "Iniciar_CON_SMART.bat"}}, "macos": {"archivo": "descargas/diagnostico_macos.zip", "tam": 48799, "sha256": "e92c4247cad5f6cfccaff90741efc1acec79c6bbb531e433bc11322c2e996ad1", "lanzadores": {"sin": "Iniciar_SIN_SMART.command", "con": "Iniciar_CON_SMART.command"}}, "linux": {"archivo": "descargas/diagnostico_linux.zip", "tam": 48741, "sha256": "800b99806ca034a9a4409587dcf1d56e93e4e3ab3fbca3103887d968c564e692", "lanzadores": {"sin": "iniciar_sin_smart.sh", "con": "iniciar_con_smart.sh"}}}};
 const PUERTOS = [8765, 8766, 8767, 8768, 8769, 8770, 8771, 8772, 8773, 8774];
 const $ = (id) => document.getElementById(id);
 const mostrar = (id, v) => $(id).classList.toggle("oculto", !v);
@@ -286,9 +287,9 @@ async function detectar() {
 function estadoConexion(ok) {
   conectado = ok;
   $("punto").className = "punto " + (ok ? "ok" : "no");
-  $("conexion").textContent = ok ? "Programa conectado" : "Programa no detectado";
-  mostrar("bloqueDescarga", !ok);
-  if (!ok) ["bloqueLogin", "bloqueConfig", "bloqueProgreso", "bloqueResultado", "bloqueError"].forEach(x => mostrar(x, false));
+  $("conexion").textContent = ok ? "Programa conectado" : (cerradoOk ? "Programa cerrado (diagnóstico terminado)" : "Programa no detectado");
+  mostrar("bloqueDescarga", !ok && !cerradoOk);
+  if (!ok) ["bloqueLogin", "bloqueConfig", "bloqueProgreso", ...(cerradoOk ? [] : ["bloqueResultado"]), "bloqueError"].forEach(x => mostrar(x, false));
   if (ok && infoAgente) {
     $("estadoSmart").textContent = " · SMART: " + (infoAgente.smart ? "autorizado" : "no autorizado");
     const v = $("avisoVersion");
@@ -335,17 +336,24 @@ async function iniciar() {
   const unidades = [...document.querySelectorAll("#unidades input:checked")].map(c => c.value);
   if (!unidades.length) { alert("Selecciona al menos una unidad."); return; }
   try {
+    CERRAR_AL_TERMINAR = $("chkCerrar").checked;
     await api("/api/iniciar", { method: "POST", body: JSON.stringify({ modo: document.querySelector('input[name="modo"]:checked').value, categorias: $("chkCat").checked, unidades }) });
     vistaRes = false; sondear();
   } catch (e) { if (e.auth) pedirPin(); else alert("No se pudo iniciar: " + e.message); }
 }
-async function mostrarReporte(ruta) {
+async function mostrarReporte(ruta, auto) {
   const r = await fetch(BASE + "/reporte", { headers: { "X-Token": token } });
   if (!r.ok) { alert("No hay un reporte disponible."); return; }
   const html = await r.text();
   $("visor").srcdoc = html; $("lnkNueva").href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
   $("rutaGuardado").textContent = ruta ? "Guardado en tu equipo: " + ruta : ""; vistaRes = true;
   mostrar("bloqueResultado", true); mostrar("bloqueConfig", false); mostrar("bloqueProgreso", false);
+  if (CERRAR_AL_TERMINAR && auto) cerrarPrograma();
+}
+let CERRAR_AL_TERMINAR = true, cerradoOk = false;
+async function cerrarPrograma() {
+  CERRAR_AL_TERMINAR = false;
+  try { await api("/api/cerrar", { method: "POST", body: "{}" }); $("rutaGuardado").textContent += " · Programa cerrado automáticamente."; cerradoOk = true; BASE = null; infoAgente = null; estadoConexion(false); } catch (e) {}
 }
 function pintar(s) {
   const activo = s.estado === "corriendo" || s.estado === "cancelando";
@@ -359,7 +367,7 @@ function pintar(s) {
   mostrar("bloqueError", s.estado === "error" || s.estado === "cancelado");
   if (s.estado === "error") $("bloqueError").textContent = "La prueba falló: " + (s.error || "error desconocido");
   if (s.estado === "cancelado") $("bloqueError").textContent = "La prueba fue cancelada.";
-  if (s.estado === "terminado" && !vistaRes) mostrarReporte(s.ruta_reporte);
+  if (s.estado === "terminado" && !vistaRes) mostrarReporte(s.ruta_reporte, true);
 }
 async function sondear() {
   clearTimeout(timer);
@@ -415,7 +423,8 @@ function arrancarCiclo() { if (!cicloActivo) { cicloActivo = true; ciclo(); } }
 $("btnPin").onclick = loginPin; $("pin").addEventListener("keydown", e => { if (e.key === "Enter") loginPin(); });
 $("btnIniciar").onclick = iniciar;
 $("btnCancelar").onclick = async () => { try { await api("/api/cancelar", { method: "POST", body: "{}" }); sondear(); } catch (e) { if (e.auth) pedirPin(); } };
-$("btnOtra").onclick = () => { vistaRes = false; mostrar("bloqueResultado", false); mostrar("bloqueError", false); mostrar("bloqueConfig", true); cargarInfo().catch(() => {}); };
+$("btnOtra").onclick = () => {
+  if (cerradoOk || !conectado) { cerradoOk = false; vistaRes = false; mostrar("bloqueResultado", false); yaLanzado = false; intentoAuto = false; BASE = null; return; } vistaRes = false; mostrar("bloqueResultado", false); mostrar("bloqueError", false); mostrar("bloqueConfig", true); cargarInfo().catch(() => {}); };
 $("lnkUltimo").onclick = (e) => { e.preventDefault(); mostrarReporte(""); };
 
 // =====================================================================
