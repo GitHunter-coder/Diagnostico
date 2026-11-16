@@ -55,21 +55,21 @@
 
   <section id="elegir" class="grid2">
     <article class="card" id="cardNav">
-      <h2>🌐 Prueba en el navegador <span class="peq">(sin instalar nada)</span></h2>
-      <div class="sub" style="margin-bottom:8px">Funciona abriendo esta página. Mide menos cosas.</div>
+      <h2>⚡ Diagnóstico rápido <span class="peq">(un clic, sin instalar nada)</span></h2>
+      <div class="sub" style="margin-bottom:8px">Se ejecuta aquí mismo, en tu navegador. Funciona en Windows, Android, iPad, Mac y Linux.</div>
       <h3>Qué mide</h3>
-      <ul class="lista"><li class="si">Velocidad de lectura/escritura del almacenamiento del navegador y de una carpeta que tú elijas</li>
-        <li class="si">Uso por categoría de archivos de esa carpeta (imágenes, videos, documentos…)</li>
-        <li class="si">Procesador, memoria y espacio disponible para el navegador</li></ul>
+      <ul class="lista"><li class="si">Velocidad de lectura/escritura e IOPS del almacenamiento</li>
+        <li class="si">Espacio disponible, procesador y memoria</li>
+        <li class="si">Opcional: uso por categoría de archivos de una carpeta que tú elijas (Chrome/Edge de escritorio)</li>
+        <li class="si">Reporte descargable en Excel</li></ul>
       <h3 style="margin-top:10px">Qué NO puede medir</h3>
-      <ul class="lista"><li class="no">Estado SMART, temperatura, horas de uso ni desgaste del disco</li>
-        <li class="no">Elegir una carpeta solo funciona en Chrome o Edge de escritorio</li></ul>
-      <div style="margin-top:14px"><button class="primario" id="btnModoNav">Usar el modo navegador</button></div>
+      <ul class="lista"><li class="no">Estado SMART, temperatura, horas de uso ni desgaste (ningún navegador puede leerlos)</li></ul>
+      <div style="margin-top:14px"><button class="primario" id="btnModoNav">▶ Iniciar diagnóstico rápido</button></div>
     </article>
 
     <article class="card" id="cardAgente">
-      <h2>💻 Prueba completa <span class="peq">(con un programa en tu equipo)</span></h2>
-      <div class="sub" style="margin-bottom:8px">Un programa pequeño que ejecutas tú; esta página lo controla.</div>
+      <h2>🩺 Diagnóstico completo <span class="peq">(con SMART, requiere un programa)</span></h2>
+      <div class="sub" style="margin-bottom:8px">Todos los discos, con salud y desgaste. Solo la primera vez hay que descargar y abrir el programa; después esta página lo abre con un clic (Windows).</div>
       <h3>Qué mide</h3>
       <ul class="lista"><li class="si">Todos los discos: velocidad, IOPS, capacidad y categorías de archivos</li>
         <li class="si">Opcional: SMART (salud, temperatura, horas de uso, desgaste, errores)</li>
@@ -77,7 +77,7 @@
       <label class="op" style="margin-top:12px"><input type="checkbox" id="chkSmart">
         <span><b>Autorizo leer datos SMART de mis discos</b>
           <small>Se leen contadores de salud del disco (no tus archivos). Se pedirá permiso de administrador en tu equipo. Sin esto, la prueba funciona igual, pero sin salud/temperatura.</small></span></label>
-      <div style="margin-top:6px"><button class="primario" id="btnModoAgente">Usar la prueba completa</button></div>
+      <div style="margin-top:6px"><button class="primario" id="btnModoAgente">▶ Iniciar diagnóstico completo</button></div>
     </article>
   </section>
 
@@ -89,8 +89,15 @@
       <div id="avisoVersion" class="peq oculto" style="margin-top:6px;color:#fde68a"></div>
     </div>
 
+    <div id="bloqueLanzar" class="card oculto">
+      <b id="lanzarTitulo">Abriendo el programa…</b>
+      <div class="peq" id="lanzarTexto" style="margin-top:6px"></div>
+    </div>
+
     <div id="bloqueDescarga" class="card aviso">
-      <h2 style="color:#fde68a">Paso 1 · Descarga y ejecuta el programa</h2>
+      <h2 style="color:#fde68a">Primera vez · descarga y abre el programa</h2>
+      <div id="bloqueReabrir" class="oculto" style="margin-bottom:12px"><button class="verde" id="btnReabrir">▶ Abrir el programa ya instalado</button>
+        <span class="peq">Si ya lo usaste antes en este equipo, no hace falta descargar nada.</span></div>
       <div id="descargaTexto"></div>
       <div id="descargaOtros" class="peq" style="margin-top:12px"></div>
       <div id="notaNavegador" class="peq oculto" style="margin-top:10px"></div>
@@ -168,7 +175,7 @@
 </div>
 
 <script>
-const SITIO = {"version": "V3", "origen": "https://githunter-coder.github.io", "paquetes": {"windows": {"archivo": "descargas/diagnostico_windows.zip", "tam": 48234, "sha256": "80f28dc72eaf9b7d3e55f5178114d5f73fbaa28a53335dbb0c1899a121cd3fd4", "lanzadores": {"sin": "Iniciar_SIN_SMART.bat", "con": "Iniciar_CON_SMART.bat"}}, "macos": {"archivo": "descargas/diagnostico_macos.zip", "tam": 47984, "sha256": "17fc80e6050c973bbb41a5a8ec3a0e6cc123395956d78c47a4d272f1aad6af81", "lanzadores": {"sin": "Iniciar_SIN_SMART.command", "con": "Iniciar_CON_SMART.command"}}, "linux": {"archivo": "descargas/diagnostico_linux.zip", "tam": 47926, "sha256": "93da093aadaadf362d661ecfbb04863987e5e7b6e443bd828ab16641f35f3537", "lanzadores": {"sin": "iniciar_sin_smart.sh", "con": "iniciar_con_smart.sh"}}}};
+const SITIO = {"version": "V3", "origen": "https://githunter-coder.github.io", "paquetes": {"windows": {"archivo": "descargas/diagnostico_windows.zip", "tam": 49357, "sha256": "5b030a4579ea1b2232286521e29e8de14a42a07417a78302ddb6932a90eb1de7", "lanzadores": {"sin": "Iniciar_SIN_SMART.bat", "con": "Iniciar_CON_SMART.bat"}}, "macos": {"archivo": "descargas/diagnostico_macos.zip", "tam": 48692, "sha256": "0a00d60b144f00233b8e38ea857c06a082182086939bd6dbaddc467c91bd98f5", "lanzadores": {"sin": "Iniciar_SIN_SMART.command", "con": "Iniciar_CON_SMART.command"}}, "linux": {"archivo": "descargas/diagnostico_linux.zip", "tam": 48634, "sha256": "6f68cbeb6b67c68cb348796872b752abd8a288deba4c772e28f61b178407218e", "lanzadores": {"sin": "iniciar_sin_smart.sh", "con": "iniciar_con_smart.sh"}}}};
 const PUERTOS = [8765, 8766, 8767, 8768, 8769, 8770, 8771, 8772, 8773, 8774];
 const $ = (id) => document.getElementById(id);
 const mostrar = (id, v) => $(id).classList.toggle("oculto", !v);
@@ -217,11 +224,11 @@ function iniciarSistema() {
 function irModo(modo) {
   mostrar("elegir", modo === null); mostrar("sistema", modo === null);
   mostrar("panelAgente", modo === "agente"); mostrar("panelNavegador", modo === "navegador");
-  if (modo === "agente") { prepararDescarga(); arrancarCiclo(); }
+  if (modo === "agente") { yaLanzado = false; intentoAuto = false; prepararDescarga(); arrancarCiclo(); }
   window.scrollTo(0, 0);
 }
 $("btnModoAgente").onclick = () => irModo("agente");
-$("btnModoNav").onclick = () => { irModo("navegador"); iniciarNavegador(); };
+$("btnModoNav").onclick = async () => { irModo("navegador"); await iniciarNavegador(); if (TIENE_OPFS) medirOpfs(); };
 $("btnVolverA").onclick = () => irModo(null);
 $("btnVolverN").onclick = () => irModo(null);
 
@@ -245,7 +252,7 @@ function prepararDescarga() {
   const pasos = SO === "windows"
     ? ["Abre el .zip descargado y extrae la carpeta (clic derecho → Extraer todo).",
        `Haz doble clic en ${lanz}.` + (quiereSmart ? " Windows pedirá permiso de Administrador: es lo que autoriza la lectura SMART." : " No se pedirán permisos especiales."),
-       "Se abre una ventana negra con un PIN de 6 dígitos: déjala abierta.",
+       "Se abre una ventana negra con un PIN de 6 dígitos: déjala abierta y escribe el PIN aquí. Solo esta primera vez: el programa deja listo un acceso para que, la próxima visita, esta página lo abra sola.",
        "Si Windows muestra «Windows protegió su PC», elige «Más información → Ejecutar de todas formas» (el archivo es un script sin firma digital)."]
     : [`Descomprime el .zip y abre una terminal en la carpeta.`,
        `Ejecuta: bash ${lanz}` + (quiereSmart ? " (pedirá tu contraseña para leer SMART)." : "."),
@@ -297,16 +304,21 @@ function pedirPin() {
 async function loginPin() {
   $("pinError").textContent = "";
   try {
-    const r = await fetch(BASE + "/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: $("pin").value.trim() }) });
-    let j = {}; try { j = await r.json(); } catch (e) {}
-    if (!r.ok) throw new Error(j.error || "No se pudo iniciar sesión");
-    token = j.token; guardar(claveSes(), token); $("pin").value = "";
+    await canjearPin($("pin").value.trim()); $("pin").value = "";
     await iniciarSesion();
   } catch (e) { $("pinError").textContent = e.message; }
 }
 async function iniciarSesion() {
   token = guardado(claveSes());
-  try { await cargarInfo(); mostrar("bloqueLogin", false); mostrar("bloqueConfig", !vistaRes); sondear(); } catch (e) { if (e.auth) pedirPin(); }
+  try { await cargarInfo(); mostrar("bloqueLogin", false); mostrar("bloqueConfig", !vistaRes); sondear(); }
+  catch (e) {
+    if (!e.auth) return;
+    if (nonceLanz && !nonceUsado) {      // la página lanzó el programa: entra con la clave de un solo uso, sin pedir PIN
+      nonceUsado = true;
+      try { await canjearPin(nonceLanz); nonceLanz = ""; return iniciarSesion(); } catch (e2) {}
+    }
+    pedirPin();
+  }
 }
 async function cargarInfo() {
   const i = await api("/api/info");
@@ -354,10 +366,47 @@ async function sondear() {
   try { const s = await api("/api/estado"); pintar(s); if (s.estado === "corriendo" || s.estado === "cancelando") timer = setTimeout(sondear, 1000); }
   catch (e) { if (e.auth) pedirPin(); }
 }
-let fallos = 0;
+// ---- Lanzar el programa ya instalado desde la página (Windows, protocolo registrado) ----
+const PROTO = "diagnosticoalmacenamiento";
+let nonceLanz = "", limiteLanz = 0, yaLanzado = false;
+const puedeLanzar = () => SO === "windows" && guardado("diag_proto") === "1";
+function lanzarPrograma() {
+  const b = new Uint8Array(18); crypto.getRandomValues(b);
+  nonceLanz = btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_");
+  limiteLanz = Date.now() + 45000; yaLanzado = true; nonceUsado = false;
+  const a = document.createElement("a"); a.href = `${PROTO}://iniciar?n=${nonceLanz}&smart=${$("chkSmart").checked ? 1 : 0}`;
+  document.body.appendChild(a); a.click(); a.remove();
+  $("lanzarTitulo").textContent = "Abriendo el programa…";
+  $("lanzarTexto").textContent = "Si el navegador pregunta si permite abrir «Python» o la aplicación, acepta (marca «siempre» para no volver a verlo)." + ($("chkSmart").checked ? " Windows pedirá permiso de administrador para leer SMART." : "");
+  mostrar("bloqueLanzar", true);
+}
+function revisarLanzamiento() {
+  if (conectado) { mostrar("bloqueLanzar", false); return; }
+  if (!yaLanzado) return;
+  if (Date.now() > limiteLanz) {
+    $("lanzarTitulo").textContent = "No se pudo abrir el programa automáticamente";
+    $("lanzarTexto").textContent = "Puede que se haya movido o borrado la carpeta, o que el navegador bloqueara el aviso. Descarga el programa de nuevo con el botón de abajo o pulsa «Abrir el programa ya instalado» otra vez.";
+    yaLanzado = false;
+  }
+}
+$("btnReabrir").onclick = () => lanzarPrograma();
+
+let nonceUsado = false;
+async function canjearPin(pin) {
+  const r = await fetch(BASE + "/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin }) });
+  let j = {}; try { j = await r.json(); } catch (e) {}
+  if (!r.ok) throw new Error(j.error || "No se pudo iniciar sesión");
+  token = j.token; guardar(claveSes(), token);
+}
+
+let fallos = 0, intentoAuto = false;
 async function ciclo() {
   if ($("panelAgente").classList.contains("oculto")) { cicloActivo = false; return; }
   const ok = await detectar();
+  if (ok && infoAgente && infoAgente.protocolo) guardar("diag_proto", "1");
+  mostrar("bloqueReabrir", puedeLanzar());
+  if (!ok && !conectado && !yaLanzado && !intentoAuto && puedeLanzar()) { intentoAuto = true; lanzarPrograma(); }
+  revisarLanzamiento();
   if (ok && !conectado) { estadoConexion(true); fallos = 0; await iniciarSesion(); }
   else if (!ok) { fallos++; if (!conectado || fallos >= 2) estadoConexion(false); } else fallos = 0;
   setTimeout(ciclo, conectado ? 4000 : 2000);
