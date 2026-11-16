@@ -1,0 +1,44 @@
+name: Construir sitio y programa de Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['fuente/**', '.github/workflows/construir.yml']
+
+permissions:
+  contents: write
+
+env:
+  ORIGEN: https://githunter-coder.github.io
+  RUTA: /diagnostico/
+
+jobs:
+  construir:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar PyInstaller
+        run: pip install pyinstaller
+      - name: Escribir el agente con el origen autorizado
+        run: python fuente/construir_sitio.py --origen "$ORIGEN" --ruta "$RUTA" --solo-agente agente_horneado.py
+      - name: Compilar diagnostico_agente.exe
+        run: pyinstaller --onefile --console --name diagnostico_agente agente_horneado.py
+      - name: Construir el sitio con el .exe dentro del paquete de Windows
+        run: python fuente/construir_sitio.py --origen "$ORIGEN" --ruta "$RUTA" --exe dist/diagnostico_agente.exe
+      - name: Publicar en la rama main
+        run: |
+          cp -r fuente/sitio/. .
+          rm -rf fuente/sitio build dist agente_horneado.py diagnostico_agente.spec
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && echo "Sin cambios" && exit 0
+          git commit -m "Construir sitio y programa de Windows [skip ci]"
+          git push
